@@ -1990,16 +1990,15 @@
         return -5; // 其餘情況一律輸給 bankrupt_regroup (8.0)
       }
 
-      // 五、常規階段 2 主動休整評分（1 幣休整跳 3 幣解鎖單回合爆發；4 人局 2 幣視情況存到 4 幣）
+      // M5（調校版 C）：常規階段 2 主動休整評分（1 幣休整下修為 3.0，並取消 2 幣主動休整）
       function evaluatePhase2RestScore(player) {
         if (player.coins >= lobbyConfig.maxCoins) return -999;
         if (player.warOrder) return -6.0; // 持有軍令時避免白白浪費
-        if (player.coins === 1) return 4.2; // 1 幣休整直接跳 3 幣（解鎖下回合 3 幣連擊），優於垃圾推牌
-        if (player.coins === 2 && G.players.length >= 4) return 2.5; // 4P 局存 4 幣備戰硬拆覺醒連擊
+        if (player.coins === 1) return 3.0; // 1 幣休整跳 3 幣（解鎖下回合 3 幣連擊），優於無效推牌
         return -6.0;
       }
 
-      // 二 & 三、常規階段 2 行動評分器（統一尺度：與護盾動態戒心、領先者集火、避打覺醒牌與休整基準對齊）
+      // M2 & M3（調校版 C）：常規階段 2 行動評分器（統一尺度：護盾動態戒心、適度圍毆、避打覺醒牌與休整基準對齊）
       function evaluatePhase2ActionScore(player, act) {
         const t = act.target;
         const slot = G.thrones[t];
@@ -2009,14 +2008,14 @@
         let score = 0;
 
         if (willAwaken) {
-          // 覺醒登頂得分（含同點連擊強行覺醒，移除連擊退幣加分）
+          // 覺醒登頂得分（含同點連擊強行覺醒，不退幣）
           score = 14.0 + pts * 4.5;
           if (player.score + pts >= lobbyConfig.targetVP) score += 500;
         } else {
           // 推入第一層基礎牌站位
           score = 3.5 + (slot.owner === null ? pts * 1.0 : 0);
 
-          // 單回合即時收益／鋪場引擎加權（確保 #3 自覺醒、#4 補幣、#5 時空搶位與 #6 突進不被 1 幣休整誤蓋）
+          // 單回合即時收益／鋪場引擎加權
           if (t === 3) {
             score += 8.0;
             if (player.score + 1 >= lobbyConfig.targetVP) score += 200;
@@ -2037,26 +2036,26 @@
           if (hasEnemyAwk) score += 5.0;
         }
 
-        // 三、領先者圍毆與「避打覺醒牌」權重
+        // M3（調校版 C）：適度圍毆＋避打覺醒權重
         if (slot && slot.owner !== null && slot.owner !== player.id) {
           const opp = G.players[slot.owner];
-          const maxOppVP = Math.max(...G.players.filter(x => x.id !== player.id).map(x => x.score));
-          const isLeader = (opp.score === maxOppVP && opp.score >= 5);
+          const maxOppVP = Math.max(0, ...G.players.filter(x => x.id !== player.id).map(x => x.score));
+          const isLeader = (opp.score === maxOppVP && opp.score >= 6);
 
           if (slot.level === 1) {
-            // 敵方基礎牌：免費斷分＋搶位
-            score += pts * 1.4;
-            if (isLeader) score += (opp.score >= 8 ? 6.5 : 3.0); // 領先者基礎牌高度集火
+            // 敵方基礎牌：適度斷分＋搶位
+            score += pts * 0.5;
+            if (isLeader) score += 2.0; // 領先者 (>=6分) 適度集火
             if (t === 3) score += 2.0; // 優先清除敵方 #3 召喚引擎
           } else if (slot.level === 2) {
-            // 敵方覺醒牌：要花 1 幣＋幫對方解鎖刷分，除非能用 #3 自覺醒或我方聽牌，否則重罰避開
-            score -= 4.2;
+            // 敵方覺醒牌：要花 1 幣＋幫對方解鎖刷分，適度避讓 (-3.0)
+            score -= 3.0;
             // 例外：若對方場上是 #4 覺醒牌且對手領先，減輕懲罰
             if (t === 4 && opp.score >= 6) score += 2.0;
           }
         }
 
-        // 二、護盾動態戒心（看對手餘額決定實送淨幣懲罰；滿幣溢出不罰、0 幣對手重罰）
+        // M2：護盾動態戒心（看對手餘額決定實送淨幣懲罰；滿幣溢出不罰、0 幣對手重罰）
         score -= calcDynamicShieldPenalty(slot, player.id, 3.2, 2.0);
 
         // 軍費消耗與軍令即期獎勵
@@ -2158,12 +2157,12 @@
         return -1;
       }
 
-      // 評估單張卡牌技能的戰術效用值（同步整合防破產底線、動態護盾戒心與領先者集火）
+      // 評估單張卡牌技能的戰術效用值（對齊調校版 C：M2 護盾戒心、M3 適度圍毆、M4 防破產底線 2.3）
       function evaluateSkillUtility(cNum, lvl, player) {
         if (!canSkillExecuteForPlayer(cNum, lvl, player)) return -999;
 
         const urgentNoBankrupt = (player.coins === 0 && !player.warOrder);
-        const maxOppVP = Math.max(...G.players.filter(x => x.id !== player.id).map(x => x.score));
+        const maxOppVP = Math.max(0, ...G.players.filter(x => x.id !== player.id).map(x => x.score));
 
         if (cNum === 3 && lvl === 1) {
           let bestPts = 1;
@@ -2184,13 +2183,13 @@
               const shieldPen = calcDynamicShieldPenalty(sl, player.id, 1.3, 0.9);
               const ptsBonus = CARD_SPECS[c].points * 0.7;
               const opp = G.players[sl.owner];
-              const leaderBonus = (opp.score === maxOppVP && opp.score >= 5) ? 0.8 : 0;
+              const leaderBonus = (opp.score === maxOppVP && opp.score >= 6) ? 0.8 : 0;
               bestWarpVal = Math.max(bestWarpVal, 2.8 + ptsBonus + leaderBonus - shieldPen);
             }
           }
           if (lvl === 2 && player.coins < lobbyConfig.maxCoins) {
-            // #5 覺醒【時空裂隙】自帶 +1 幣，於 0 幣防破產狀態下同樣能救回現金流
-            bestWarpVal += urgentNoBankrupt ? 4.2 : 1.5;
+            // #5 覺醒【時空裂隙】自帶 +1 幣，於 0 幣防破產狀態下對齊 M4 現金流估值 (2.3)
+            bestWarpVal += urgentNoBankrupt ? 2.3 : 1.5;
           }
           return bestWarpVal;
         }
@@ -2199,13 +2198,13 @@
           const gainCoins = Math.min(2, Math.max(0, lobbyConfig.maxCoins - player.coins));
           const coinGainVal = gainCoins === 0
             ? 0
-            : (urgentNoBankrupt ? (4.2 + (gainCoins - 1) * 1.5) : gainCoins * 1.5);
+            : (urgentNoBankrupt ? (2.3 + (gainCoins - 1) * 1.5) : gainCoins * 1.5);
           const oppHasCoin = G.players.some(pl => pl.id !== player.id && pl.coins > 0);
           return coinGainVal + (lvl === 2 && oppHasCoin ? 1.1 : 0);
         }
 
         if (cNum === 6 && lvl === 1) return 3.3;
-        if (cNum === 6 && lvl === 2) return urgentNoBankrupt ? 4.3 : 3.4; // 軍令亦可免下回合破產
+        if (cNum === 6 && lvl === 2) return urgentNoBankrupt ? 3.8 : 3.4; // 軍令亦可免下回合破產
         if (cNum === 3 && lvl === 2) return 3.1;
 
         if (cNum === 1) {
@@ -2215,10 +2214,10 @@
             if (sl.owner !== null && sl.owner !== player.id && sl.level === 1) {
               const opp = G.players[sl.owner];
               const shieldPen = calcDynamicShieldPenalty(sl, player.id, 1.3, 0.9);
-              const isLeader = (opp.score === maxOppVP && opp.score >= 5);
-              const leaderBonus = isLeader ? (opp.score >= 8 ? 2.4 : 1.1) : 0;
+              const isLeader = (opp.score === maxOppVP && opp.score >= 6);
+              const leaderBonus = isLeader ? 1.0 : 0;
               const stealBonus = (lvl === 2 && opp.coins > 0 && player.coins < lobbyConfig.maxCoins)
-                ? (urgentNoBankrupt ? 4.2 : 1.5)
+                ? (urgentNoBankrupt ? 2.3 : 1.5)
                 : 0;
               bestVal = Math.max(bestVal, 2.4 + CARD_SPECS[c].points * 0.45 + leaderBonus + stealBonus - shieldPen);
             }
@@ -2235,7 +2234,14 @@
         return 1.0;
       }
 
-      // 四、階段 4 候選評分器（加入「防破產底線」現金流警戒線）
+      // 階段 4 0 幣戰術撤回評分器（若任一對手分數 >= 7 分，撤回 #3 覺醒牌評分直接歸零，避免讓出單回合自覺醒斬殺格）
+      function evaluateRetreatCardScore(cardNum, totalAwkCount, maxOppVP) {
+        if (cardNum === 3 && maxOppVP >= 7) return 0;
+        const cardVP = CARD_SPECS[cardNum].points;
+        return cardVP * 0.8 + (totalAwkCount >= 2 ? 1.4 : 0.2);
+      }
+
+      // M4（調校版 C）：階段 4 候選評分器（防破產底線 2.3：仍高於 0 幣撤回，但絕不蓋過 #2～#6 有效技能）
       function resolvePhase4AI() {
         const p = G.players[G.currentPlayerIdx];
         const { cardNum, finalLevel } = G.commandContext;
@@ -2262,22 +2268,39 @@
           });
         }
 
-        // 防破產底線：餘額歸 0 且無軍令時，領 +1 幣權重拉高至 4.2，避免下回合破產喪失手選權
+        // M4（調校版 C）：防破產底線下修為 2.3
         const urgentNoBankrupt = (p.coins === 0 && !p.warOrder);
-        const fbCoinVal = p.coins >= lobbyConfig.maxCoins ? 0 : (urgentNoBankrupt ? 4.2 : 1.5);
+        const fbCoinVal = p.coins >= lobbyConfig.maxCoins ? 0 : (urgentNoBankrupt ? 2.3 : 1.5);
         candidates.push({ type: 'FALLBACK_COIN', score: fbCoinVal });
 
-        // 0 幣戰術撤回己方覺醒牌：僅於「不缺錢（非防破產緊急狀態）」時參與競爭
+        // 0 幣戰術撤回己方覺醒牌：僅於非防破產緊急狀態時參與競爭（對手 >= 7 分時 #3 撤回評分歸零）
         const myAwk = getMyAwakenedCards(p.id);
         if (myAwk.length > 0 && !urgentNoBankrupt) {
-          const bestAwkCard = [...myAwk].sort((a, b) => CARD_SPECS[b].points - CARD_SPECS[a].points)[0];
-          const cardVP = CARD_SPECS[bestAwkCard].points;
-          const retreatScore = cardVP * 0.8 + (myAwk.length >= 2 ? 1.4 : 0.2);
-          candidates.push({ type: 'FALLBACK_RETREAT', cardNum: bestAwkCard, score: retreatScore });
+          const maxOppVP = Math.max(0, ...G.players.filter(x => x.id !== p.id).map(x => x.score));
+          const scoredAwk = myAwk
+            .map(c => ({ cardNum: c, score: evaluateRetreatCardScore(c, myAwk.length, maxOppVP) }))
+            .sort((a, b) => b.score - a.score);
+          const bestRetreat = scoredAwk[0];
+          if (bestRetreat && bestRetreat.score > 0) {
+            candidates.push({ type: 'RETREAT', score: bestRetreat.score });
+          }
         }
 
         candidates.sort((a, b) => b.score - a.score);
         const best = candidates[0];
+
+        if (!best || best.type === 'FALLBACK_COIN') {
+          fallbackPhase4Coin(false);
+          return;
+        }
+
+        if (best.type === 'RETREAT') {
+          startPhase4Retreat();
+          if (!G.gameOver && G.phase === 4 && G.subState === 'SKILL_TARGET') {
+            scheduleAI(() => aiFinishSkillTarget(), 320);
+          }
+          return;
+        }
 
         if (best.type === 'SELF') {
           triggerFreeSelfCommand();
@@ -2295,22 +2318,15 @@
           return;
         }
 
-        if (best.type === 'FALLBACK_RETREAT') {
-          startPhase4Retreat();
-          if (!G.gameOver && G.phase === 4 && G.subState === 'SKILL_TARGET') {
-            scheduleAI(() => handleThroneClick(best.cardNum), 280);
-          }
-          return;
-        }
-
         fallbackPhase4Coin(false);
       }
 
+      // 階段 4 技能目標 AI 選取器
       function aiFinishSkillTarget() {
         if (G.gameOver || G.phase !== 4 || G.subState !== 'SKILL_TARGET' || !G.skillContext) return;
         const p = G.players[G.currentPlayerIdx];
         const ctx = G.skillContext;
-        const maxOppVP = Math.max(...G.players.filter(x => x.id !== p.id).map(x => x.score));
+        const maxOppVP = Math.max(0, ...G.players.filter(x => x.id !== p.id).map(x => x.score));
 
         if (ctx.type === 'BASE_3_SUMMON') {
           const sorted = [...ctx.validThrones].sort((a, b) => CARD_SPECS[b].points - CARD_SPECS[a].points);
@@ -2325,45 +2341,55 @@
           return;
         }
 
-        // #5 基礎【時空扭曲】 & #5 覺醒【時空裂隙】：動態護盾淨贈幣最少 ➔ 2 分格 ➔ 領先者
-        if (ctx.type === 'BASE_5_REVERT_SEIZE' || ctx.type === 'AWK_5_WARP_RIFT') {
-          const scoreTarget = (c) => {
-            const sl = G.thrones[c];
-            const opp = G.players[sl.owner];
-            const isLeader = (opp.score === maxOppVP && opp.score >= 5);
-            return CARD_SPECS[c].points * 2.5
-              + opp.score * 0.6
-              + (isLeader ? 2.5 : 0)
-              - calcDynamicShieldPenalty(sl, p.id, 3.2, 2.0);
-          };
-          const sorted = [...ctx.validThrones].sort((a, b) => scoreTarget(b) - scoreTarget(a));
-          handleThroneClick(sorted[0]);
-          return;
-        }
-
         if (ctx.type === 'P4_RETREAT_AWAKENED') {
-          const sorted = [...ctx.validThrones].sort((a, b) => CARD_SPECS[b].points - CARD_SPECS[a].points);
+          const sorted = [...ctx.validThrones].sort((a, b) => {
+            const scDiff = evaluateRetreatCardScore(b, ctx.validThrones.length, maxOppVP) - evaluateRetreatCardScore(a, ctx.validThrones.length, maxOppVP);
+            if (scDiff !== 0) return scDiff;
+            return (G.thrones[a].shield ? 1 : 0) - (G.thrones[b].shield ? 1 : 0);
+          });
           handleThroneClick(sorted[0]);
           return;
         }
 
         if (ctx.type === 'BASE_2_SHIELD') {
-          const priority = [3, 4, 6, 1, 2, 5];
-          const chosen = priority.find(c => ctx.validThrones.includes(c)) || ctx.validThrones[0];
-          handleThroneClick(chosen);
+          const scoreShieldTarget = (c) => {
+            const sl = G.thrones[c];
+            let s = CARD_SPECS[c].points * 2;
+            if (c === 3 || c === 4) s += 3;
+            if (sl.level === 1) s += 2;
+            return s;
+          };
+          const sorted = [...ctx.validThrones].sort((a, b) => scoreShieldTarget(b) - scoreShieldTarget(a));
+          handleThroneClick(sorted[0]);
           return;
         }
 
-        // #1 基礎【刺客伏擊】 & #1 覺醒【絕命影襲】：優先狙擊領先者基礎牌＋動態護盾戒心＋優先拆 #3
+        // #5 基礎【時空扭曲】 & #5 覺醒【時空裂隙】：優先鎖定「無護盾 ➔ 2 分格 ➔ 領先者」
+        if (ctx.type === 'BASE_5_REVERT_SEIZE' || ctx.type === 'AWK_5_WARP_RIFT') {
+          const scoreWarpTarget = (c) => {
+            const sl = G.thrones[c];
+            const opp = G.players[sl.owner];
+            const isLeader = (opp.score === maxOppVP && opp.score >= 6);
+            return CARD_SPECS[c].points * 3.0
+              + (isLeader ? 2.0 : 0)
+              + opp.score * 0.25
+              - calcDynamicShieldPenalty(sl, p.id, 3.2, 2.0);
+          };
+          const sorted = [...ctx.validThrones].sort((a, b) => scoreWarpTarget(b) - scoreWarpTarget(a));
+          handleThroneClick(sorted[0]);
+          return;
+        }
+
+        // #1 基礎【刺客伏擊】 & #1 覺醒【絕命影襲】：同步對齊 M3（適度圍毆＋動態護盾戒心＋優先拆 #3）
         if (ctx.type === 'BASE_1_ASSASSIN' || ctx.type === 'AWK_1_SHADOW_STRIKE') {
           const scoreTarget = (c) => {
             const sl = G.thrones[c];
             const opp = G.players[sl.owner];
-            const isLeader = (opp.score === maxOppVP && opp.score >= 5);
+            const isLeader = (opp.score === maxOppVP && opp.score >= 6);
             const stealVal = (ctx.type === 'AWK_1_SHADOW_STRIKE' && opp.coins > 0) ? 2.5 : 0;
-            return CARD_SPECS[c].points * 1.4
+            return CARD_SPECS[c].points * 0.5
               + (c === 3 ? 3.5 : 0)
-              + (isLeader ? (opp.score >= 8 ? 6.5 : 3.0) : 0)
+              + (isLeader ? 2.0 : 0)
               + stealVal
               - calcDynamicShieldPenalty(sl, p.id, 3.2, 2.0);
           };
