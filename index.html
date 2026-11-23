@@ -926,7 +926,7 @@
       }
 
       // ============================================================================
-      // 回合流程狀態機 (階段 0 -> 階段 1 -> 階段 2 -> 階段 3 -> 階段 4)
+      // 核心回合狀態機（V9.2.4：階段 0～4、合法目標餘額預檢、無連擊退幣、階段 4 全面零付費）
       // ============================================================================
       function startTurn() {
         clearAITimers();
@@ -939,6 +939,7 @@
         const p = G.players[G.currentPlayerIdx];
         T.totalTurns++;
 
+        // 階段 0 戰局檢視：檢查 0 幣破產 vs ⚔️軍令免破產
         if (p.coins === 0 && !p.warOrder) {
           T.bankruptTurns++;
         } else if (p.coins === 0 && p.warOrder) {
@@ -958,12 +959,12 @@
         const tags = [];
         if (p.fortune) tags.push('持有🎲機運：階段1天命2選1');
         if (p.warOrder) tags.push(p.coins === 0 ? '持有⚔️軍令：0幣免破產＆意志折1幣' : '持有⚔️軍令：階段2意志折1幣(結束歸還)');
-        if (p.coins === 0 && !p.warOrder) tags.push('0幣觸發🛡️破產流浪漢協議(算術直結回合)');
+        if (p.coins === 0 && !p.warOrder) tags.push('0幣觸發🛡️破產協議(隨機第2骰・算術直結)');
         logEvent(`── 第 ${G.round} 回合：輪到 ${p.seatTag} [${p.name}]${tags.length ? `（${tags.join('；')}）` : ''} ──`);
         renderAll();
 
         if (autoPlayMode || p.type === 'AI') {
-          scheduleAI(() => aiExecutePhase1(), 400);
+          scheduleAI(() => aiExecutePhase1(), 420);
         }
       }
 
@@ -996,7 +997,7 @@
         return true;
       }
 
-      // 定案 1A：階段 2 結束立即歸還【⚔️軍令】至公區
+      // 定案 1A：軍令於階段 2 結束立即消耗並歸還公區
       function consumeWarOrder(player, reason) {
         if (!player.warOrder) return false;
         player.warOrder = false;
@@ -1010,7 +1011,7 @@
         return true;
       }
 
-      // 雙倍護盾撫卹補償 (+2 幣；已修補重複字詞)
+      // 雙倍護盾撫卹補償 (+2 幣，修補日誌重複字詞)
       function triggerShieldInsurance(slot, defender, cardNum, reasonType, reasonLabel) {
         if (!slot.shield) return;
         slot.shield = false;
@@ -1018,19 +1019,15 @@
         if (reasonType === 'CLASH') T.tokenStats.shieldInsuranceByClash++;
         else T.tokenStats.shieldInsuranceBySkill++;
         const gained = addCoin(defender, 2, 'doubleShieldInsurance');
-        logEvent(`🛡️💰【雙倍護盾撫卹】${defender.seatTag} [${defender.name}] 的 #${cardNum} 因${reasonLabel}退回陣地，護盾破裂歸還公區，立即領取 +2 幣撫卹金（實得 +${gained} 幣，當前 ${defender.coins}/${lobbyConfig.maxCoins} 幣）！`);
+        logEvent(`🛡️💰【雙倍護盾撫卹補償】${defender.seatTag} [${defender.name}] 的 #${cardNum} 因${reasonLabel}而退回陣地，護盾破裂歸還公區，立即領取 +2 幣撫卹金（實得 +${gained} 幣，當前 ${defender.coins}/${lobbyConfig.maxCoins} 幣）！`);
       }
 
-      function awardAwakeningScore(player, cardNum, isDoublesOnMyBase = false) {
+      function awardAwakeningScore(player, cardNum, customNote = '') {
         const pts = CARD_SPECS[cardNum].points;
         player.score += pts;
         T.cards[cardNum].awakened++;
         T.cards[cardNum].pointsScored += pts;
-        if (isDoublesOnMyBase) {
-          logEvent(`🌟【登頂覺醒得分】${player.seatTag} [${player.name}] 以同點連擊使 #${cardNum} 晉升覺醒牌！獲得 +${pts} 分 (總分: ${player.score}/${lobbyConfig.targetVP})（第 2 推不重複計分亦不退幣）`);
-        } else {
-          logEvent(`🌟【登頂覺醒得分】${player.seatTag} [${player.name}] 的 #${cardNum} 晉升至第二層覺醒牌！獲得 +${pts} 分 (總分: ${player.score}/${lobbyConfig.targetVP})`);
-        }
+        logEvent(`🌟【登頂覺醒得分】${player.seatTag} [${player.name}] 的 #${cardNum} 晉升至第二層覺醒牌！獲得 +${pts} 分 (總分: ${player.score}/${lobbyConfig.targetVP})${customNote}`);
 
         if (player.score >= lobbyConfig.targetVP) {
           G.gameOver = true;
@@ -1042,7 +1039,7 @@
         }
       }
 
-      // 階段 1：擲天命骰（1 顆，持有🎲機運改擲 2 顆選 1 顆，選畢立即歸還公區）
+      // 階段 1：擲天命骰（持有🎲機運執行天命 2 選 1，選畢立即歸還公區）
       function playerRollFateDie() {
         if (G.gameOver || G.phase !== 1 || G.subState !== 'NEED_FATE_ROLL') return;
         const p = G.players[G.currentPlayerIdx];
@@ -1066,7 +1063,7 @@
         G.fateDie = G.rawFateDice[keepIdx];
         p.fortune = false;
         G.supply.fortune = Math.min(5, G.supply.fortune + 1);
-        logEvent(`🎲 ${p.seatTag} 依【機運】保留天命骰 D = [${G.fateDie}]，【機運】立即歸還公區。`);
+        logEvent(`🎲 ${p.seatTag} 依【機運】選擇保留天命骰 D = [${G.fateDie}]，機運立即歸還公區。`);
         enterPhase2();
       }
 
@@ -1075,12 +1072,12 @@
         const p = G.players[G.currentPlayerIdx];
         if (p.coins === 0 && !p.warOrder) {
           G.subState = 'BANKRUPT_NEED_ROLL';
-          logEvent(`🛡️ ${p.seatTag} [${p.name}] 持有 0 幣且無軍令，觸發【破產流浪漢協議】：喪失手選特權，請強制隨機擲第 2 顆骰子（破產算術完成後直接結束回合）！`);
+          logEvent(`🛡️ ${p.seatTag} [${p.name}] 持有 0 幣且無軍令，觸發【破產流浪漢協議】：強制隨機擲第 2 顆骰（免費算術結算後直接結束回合）！`);
         } else {
           G.subState = 'NORMAL_WILL_SELECT';
           G.selectedWillDie = null;
           if (p.coins === 0 && p.warOrder) {
-            logEvent(`⚔️ ${p.seatTag} [${p.name}] 雖為 0 幣但持有【軍令】，免於破產並享有 1～3 點異點小牌免費手選特權！`);
+            logEvent(`⚔️ ${p.seatTag} [${p.name}] 雖為 0 幣但持有【軍令】，免於破產並享手選意志骰折抵 1 幣特權！`);
           }
         }
         renderAll();
@@ -1095,11 +1092,10 @@
         const p = G.players[G.currentPlayerIdx];
         G.bankruptWillDie = rollD6();
         G.subState = 'BANKRUPT_ASSIGN';
-        logEvent(`🎲🛡️【破產隨機雙骰】${p.seatTag} 隨機擲出第 2 顆骰 W = [${G.bankruptWillDie}]（雙骰 [${G.fateDie}, ${G.bankruptWillDie}]；禁連擊且不可攻敵方覺醒牌）。`);
+        logEvent(`🎲🛡️【破產隨機雙骰】${p.seatTag} 強制隨機擲出第 2 顆骰 W = [${G.bankruptWillDie}]（雙骰 [${G.fateDie}, ${G.bankruptWillDie}]；禁連擊、不可攻打敵方覺醒牌）。`);
         renderAll();
       }
 
-      // 計算意志骰基礎與軍令折抵後成本
       function getWillDieBaseCost(D, W) {
         if (W === D) return 3;
         return W <= 3 ? 1 : 2;
@@ -1110,99 +1106,74 @@
         return hasWarOrder ? Math.max(0, base - 1) : base;
       }
 
-      // 輔助：嚴格檢查目標格合法性（攻打敵方覺醒牌時，付完意志骰費後剩餘行動幣必須 >= 1）
-      function checkTargetLegality(player, cardNum, willDieCost) {
-        if (cardNum < 1 || cardNum > 6) return { legal: false, reason: '超出 1~6 範圍' };
-        const slot = G.thrones[cardNum];
-        if (slot.owner === player.id && slot.level === 2) {
-          return { legal: false, reason: '我方已覺醒' };
-        }
-        const isEnemyAwk = (slot.owner !== null && slot.owner !== player.id && slot.level === 2);
-        const remainingAfterWill = player.coins - willDieCost;
-        if (isEnemyAwk && remainingAfterWill < 1) {
-          return { legal: false, reason: '攻敵覺醒餘幣不足1幣' };
-        }
-        return { legal: true, isEnemyAwk, remainingAfterWill };
-      }
-
-      // 階段 2 合法動作清單（含敵方覺醒牌餘額 >= 1 強制過濾）
+      // 階段 2 合法動作與餘額預檢（攻打敵方覺醒牌強制要求扣除意志骰費用後剩餘行動幣 >= 1）
       function getWillDieActions(player, D, W, isBankrupt) {
         const actions = [];
         const hasWO = !isBankrupt && player.warOrder;
         const baseCost = isBankrupt ? 0 : getWillDieBaseCost(D, W);
         const cost = isBankrupt ? 0 : getWillDieFinalCost(D, W, hasWO);
-        const canPayWill = isBankrupt || player.coins >= cost;
-        const costTag = isBankrupt
-          ? '破產0幣・直結回合'
-          : (hasWO ? `⚔️軍令折後 ${cost} 幣` : `付 ${cost} 幣`);
+        const isLegalSlot = (c) => c >= 1 && c <= 6 && !(G.thrones[c].owner === player.id && G.thrones[c].level === 2);
 
-        const buildClashSuffix = (cardNum) => {
-          const slot = G.thrones[cardNum];
-          if (slot.owner !== null && slot.owner !== player.id && slot.level === 2) {
-            return ' ‧ ⚔️標準擊退再-1幣';
+        const buildAction = (mode, target) => {
+          const slot = G.thrones[target];
+          const isEnemyAwk = (slot.owner !== null && slot.owner !== player.id && slot.level === 2);
+          const isMyBase = (slot.owner === player.id && slot.level === 1);
+          const remainingAfterWill = player.coins - cost;
+
+          // 攻打敵方覺醒牌強制檢查：扣除本回合意志骰費用後剩餘行動幣 >= 1
+          if (isEnemyAwk && isBankrupt) return null;
+          const canAfford = isBankrupt
+            ? true
+            : (isEnemyAwk ? (remainingAfterWill >= 1) : (player.coins >= cost));
+
+          const costText = isBankrupt
+            ? '破產0幣・直結回合'
+            : (hasWO ? `⚔️折後${cost}幣` : `付${cost}幣`);
+          const clashText = isEnemyAwk ? ' + ⚔️1幣標準擊退' : '';
+
+          let label = '';
+          if (mode === 'DOUBLES') {
+            label = isMyBase
+              ? `⚡ 同點連擊 #${target} (${costText}：第1推覺醒得分、第2推不退幣)`
+              : `⚡ 同點連擊 #${target} (${costText}${clashText}：進駐並原地覺醒)`;
+          } else {
+            const sym = mode === 'ADD' ? `➕ 相加 (${D}+${W}=${target})` : `➖ 相減 (|${D}-${W}|=${target})`;
+            label = `${sym} ➔ ${isMyBase ? `充能覺醒 #${target}` : `推 #${target}`} (${costText}${clashText})`;
           }
-          if (slot.owner === player.id && slot.level === 1) {
-            return ' ‧ 🌟覺醒得分';
-          }
-          return '';
+
+          return {
+            mode,
+            willDie: W,
+            target,
+            baseCost,
+            cost,
+            isEnemyAwk,
+            usedWarOrder: hasWO,
+            canAfford,
+            label
+          };
         };
 
-        // 1. 常規手選同點 (W === D)：專用於發動【同點連擊】，不進行同點相加（保留己方基礎牌合法性，供 D=4/5/6 強行覺醒）
+        // 常規手選與天命同點：專用於發動同點連擊（保留己方基礎牌合法性以供 D=4/5/6 強行覺醒斬殺）
         if (!isBankrupt && W === D) {
-          const leg = checkTargetLegality(player, D, cost);
-          if (leg.legal) {
-            const isMyBase = G.thrones[D].owner === player.id && G.thrones[D].level === 1;
-            const suffix = isMyBase ? ' ‧ 強行覺醒(不退幣)' : buildClashSuffix(D);
-            actions.push({
-              mode: 'DOUBLES',
-              willDie: W,
-              target: D,
-              baseCost,
-              cost,
-              usedWarOrder: hasWO,
-              canAfford: canPayWill,
-              isEnemyAwk: leg.isEnemyAwk,
-              label: `⚡ 同點連擊 #${D} (${costTag}${suffix})`
-            });
+          if (isLegalSlot(D)) {
+            const act = buildAction('DOUBLES', D);
+            if (act) actions.push(act);
           }
           return actions;
         }
 
-        // 2. 異點手選 或 破產免費雙骰：進行相加 (D+W) 與相減 (|D-W|)
+        // 一般異點手選 或 破產隨機雙骰（破產保留天然同點相加，但禁連擊）
         const sum = D + W;
-        const sumLeg = checkTargetLegality(player, sum, cost);
-        if (sumLeg.legal) {
-          const isMyBase = G.thrones[sum].owner === player.id && G.thrones[sum].level === 1;
-          actions.push({
-            mode: 'ADD',
-            willDie: W,
-            target: sum,
-            baseCost,
-            cost,
-            usedWarOrder: hasWO,
-            canAfford: canPayWill,
-            isEnemyAwk: sumLeg.isEnemyAwk,
-            label: `➕ 相加 (${D}+${W}=${sum}) ➔ ${isMyBase ? `充能覺醒 #${sum}` : `推 #${sum}`} (${costTag}${buildClashSuffix(sum)})`
-          });
+        if (isLegalSlot(sum)) {
+          const act = buildAction('ADD', sum);
+          if (act) actions.push(act);
         }
 
         const diff = Math.abs(D - W);
-        if (diff !== sum) {
-          const diffLeg = checkTargetLegality(player, diff, cost);
-          if (diffLeg.legal) {
-            const isMyBase = G.thrones[diff].owner === player.id && G.thrones[diff].level === 1;
-            actions.push({
-              mode: 'SUB',
-              willDie: W,
-              target: diff,
-              baseCost,
-              cost,
-              usedWarOrder: hasWO,
-              canAfford: canPayWill,
-              isEnemyAwk: diffLeg.isEnemyAwk,
-              label: `➖ 相減 (|${D}-${W}|=${diff}) ➔ ${isMyBase ? `充能覺醒 #${diff}` : `推 #${diff}`} (${costTag}${buildClashSuffix(diff)})`
-            });
-          }
+        if (isLegalSlot(diff) && diff !== sum) {
+          const act = buildAction('SUB', diff);
+          if (act) actions.push(act);
         }
 
         return actions;
@@ -1214,7 +1185,6 @@
         renderAll();
       }
 
-      // 執行階段 2 推進決策
       function executePhase2Action(willDie, mode) {
         if (G.gameOver || G.phase !== 2) return;
         const p = G.players[G.currentPlayerIdx];
@@ -1224,12 +1194,7 @@
         const actions = getWillDieActions(p, G.fateDie, willDie, isBankrupt);
         const act = actions.find(a => a.mode === mode);
         if (!act || !act.canAfford) return;
-
-        // 再次硬檢核：敵方覺醒牌必須於扣完意志骰費用後剩餘 >= 1 幣
-        const targetSlot = G.thrones[act.target];
-        if (targetSlot.owner !== null && targetSlot.owner !== p.id && targetSlot.level === 2 && (p.coins - act.cost) < 1) {
-          return;
-        }
+        if (act.isEnemyAwk && (p.coins - act.cost < 1)) return;
 
         if (!isBankrupt) {
           if (!spendCoin(p, act.cost, 'willDieCost')) return;
@@ -1250,7 +1215,7 @@
           T.bankruptArithmeticPushes++;
           T.phase2Choices.bankruptArith_0coin++;
           const sym = act.mode === 'ADD' ? `${G.fateDie}+${willDie}=${act.target}` : `|${G.fateDie}-${willDie}|=${act.target}`;
-          logEvent(`🛡️🧮【破產免費算術】${p.seatTag} [${p.name}] 使用隨機雙骰宣告 ${sym} 推進 #${act.target}（結算後直接結束回合）！`);
+          logEvent(`🛡️🧮【破產免費算術】${p.seatTag} [${p.name}] 使用隨機雙骰宣告 ${sym} 推進 #${act.target}！`);
         }
 
         G.activeAssignment = {
@@ -1262,7 +1227,6 @@
         resolvePhase3Push();
       }
 
-      // 階段 2：休整回氣 或 破產棄骰重整（+2 幣；若持軍令立即歸還公區）
       function executePhase2Rest() {
         if (G.gameOver || G.phase !== 2) return;
         const p = G.players[G.currentPlayerIdx];
@@ -1277,14 +1241,14 @@
           const woExpired = consumeWarOrder(p, 'REST');
           T.phase2Choices.normalRest_2coin++;
           const added = addCoin(p, 2, 'normalRest');
-          const woNote = woExpired ? '（⚔️軍令立即歸還公區）' : '';
+          const woNote = woExpired ? '（⚔️軍令已於階段 2 結束歸還公區）' : '';
           logEvent(`🪙【戰術休整回氣】${p.seatTag} [${p.name}] 放棄意志調度，領取 +2 幣（實得 +${added} 幣，當前 ${p.coins}/${lobbyConfig.maxCoins} 幣）${woNote}，結束回合。`);
         }
         endTurn();
       }
 
       // ============================================================================
-      // 階段 3：移動、標準擊退與雙倍護盾撫卹結算（無破陣衝鋒；破產算術直結回合）
+      // 階段 3：移動、統一標準擊退 (-1 幣) 與雙倍護盾撫卹結算
       // ============================================================================
       function resolvePhase3Push() {
         G.phase = 3;
@@ -1293,17 +1257,18 @@
         const slot = G.thrones[cardNum];
         T.cards[cardNum].pushed++;
 
-        const finishPhase3 = (finalLevel) => {
+        const concludePhase3 = (finalLevel) => {
           if (G.gameOver) {
             renderAll();
             return;
           }
+          // 破產算術結算後直接結束回合（跳過階段 4，不領 +1 幣保底）
           if (isBankruptArith) {
-            logEvent(`🛡️⏭️【破產算術直結回合】${p.seatTag} 完成破產免費算術進駐／覺醒，依規則直接結束回合（跳過階段 4、無保底領幣）。`);
+            logEvent(`🛡️【破產算術直結】${p.seatTag} [${p.name}] 完成破產免費算術推進，直接結束回合（跳過階段 4）。`);
             endTurn();
             return;
           }
-          enterPhase4({ cardNum, finalLevel });
+          enterPhase4({ cardNum, finalLevel, noTargetNotice: '' });
         };
 
         // 1. 空位進駐
@@ -1316,27 +1281,27 @@
           if (isDoublesCombo) {
             slot.level = 2;
             awardAwakeningScore(p, cardNum);
-            finishPhase3(2);
+            concludePhase3(2);
           } else {
-            finishPhase3(1);
+            concludePhase3(1);
           }
           return;
         }
 
-        // 2. 我方基礎牌充能覺醒（V9.2.4：同點連擊命中我方基礎牌時直接完成覺醒，第 2 推不重複計分亦不退幣）
+        // 2. 我方基礎牌充能覺醒（V9.2.4：同點連擊命中我方基礎牌第 2 推不重複計分亦不退幣）
         if (slot.owner === p.id && slot.level === 1) {
           slot.level = 2;
           if (slot.shield) {
             T.tokenStats.shieldRetainedOnAwk++;
             logEvent(`🛡️ #${cardNum} 升級為覺醒牌，身上原有的【護盾】完整保留！`);
           }
-          awardAwakeningScore(p, cardNum, isDoublesCombo);
-          if (G.gameOver) { renderAll(); return; }
-          finishPhase3(2);
+          const noRefundNote = isDoublesCombo ? '（同點連擊第 2 推不重複計分亦不退幣）' : '';
+          awardAwakeningScore(p, cardNum, noRefundNote);
+          concludePhase3(2);
           return;
         }
 
-        // 3. 敵方佔領 ➔ 擊退與雙倍護盾撫卹判定
+        // 3. 敵方佔領
         const defender = G.players[slot.owner];
 
         // 3a. 敵方基礎牌 ➔ 免費擊退
@@ -1353,62 +1318,54 @@
           if (isDoublesCombo) {
             slot.level = 2;
             awardAwakeningScore(p, cardNum);
-            finishPhase3(2);
+            concludePhase3(2);
           } else {
-            finishPhase3(1);
+            concludePhase3(1);
           }
           return;
         }
 
-        // 3b. 敵方覺醒牌 ➔ 統一支付 1 幣執行【標準擊退】並正常進入階段 4
-        if (slot.level === 2) {
-          spendCoin(p, 1, 'standardKnockback');
-          T.clashChoices.standardKnockback++;
-          logEvent(`⚔️💰【標準擊退 (-1幣)】${p.seatTag} 支付 1 幣將 ${defender.seatTag} 的 #${cardNum} 覺醒牌擊退回陣地並佔領第一層！`);
-          if (slot.shield) {
-            triggerShieldInsurance(slot, defender, cardNum, 'CLASH', '被敵方標準擊退');
-          }
-          slot.owner = p.id;
-          slot.level = 1;
-          slot.shield = false;
+        // 3b. 敵方覺醒牌 ➔ 統一扣除 1 幣執行【標準擊退】並正常進入階段 4
+        if (!spendCoin(p, 1, 'standardKnockback')) {
+          logEvent(`⚠️ 軍費不足無法擊退敵方覺醒牌，回合異常中止。`);
+          endTurn();
+          return;
+        }
+        T.clashChoices.standardKnockback++;
+        logEvent(`⚔️💰 ${p.seatTag} 支付 1 幣執行【標準擊退】，將 ${defender.seatTag} 的 #${cardNum} 覺醒牌退回陣地並佔領第一層！`);
+        if (slot.shield) {
+          triggerShieldInsurance(slot, defender, cardNum, 'CLASH', '被敵方標準擊退');
+        }
+        slot.owner = p.id;
+        slot.level = 1;
+        slot.shield = false;
 
-          if (isDoublesCombo) {
-            slot.level = 2;
-            awardAwakeningScore(p, cardNum);
-            finishPhase3(2);
-          } else {
-            finishPhase3(1);
-          }
+        if (isDoublesCombo) {
+          slot.level = 2;
+          awardAwakeningScore(p, cardNum);
+          concludePhase3(2);
+        } else {
+          concludePhase3(1);
         }
       }
 
       // ============================================================================
-      // 階段 4：王座權能宣告（V9.2.4 全面零付費：基礎進駐限自身／覺醒特權免費調度全場隊友）
+      // 階段 4：王座權能宣告（V9.2.4 全面零付費：基礎限自身、覺醒特權免費調度隊友、放棄二擇一）
       // ============================================================================
       function enterPhase4(context) {
         G.phase = 4;
         G.subState = 'COMMAND_CHOICE';
-        G.commandContext = { ...context, noTargetNotice: '' };
+        G.commandContext = context;
         const p = G.players[G.currentPlayerIdx];
-        const phase4Log = context.finalLevel === 2
-          ? '👑 進入【階段 4（覺醒特權）：免費發動我方全場任一卡牌能力，或放棄二擇一】'
-          : '⚡ 進入【階段 4：免費發動自身基礎技，或放棄二擇一（+1 幣／0 幣撤回覺醒牌）】';
-        logEvent(phase4Log);
+        const msg = context.finalLevel === 2
+          ? '👑 進入【階段 4（覺醒特權）】：免費發動我方全場任一卡牌能力，或放棄二擇一（+1 幣／0 幣撤回覺醒牌）'
+          : '⚡ 進入【階段 4】：免費發動自身基礎技，或放棄二擇一（+1 幣／0 幣撤回覺醒牌）';
+        logEvent(msg);
         renderAll();
 
         if (autoPlayMode || p.type === 'AI') {
           scheduleAI(() => resolvePhase4AI(), 420);
         }
-      }
-
-      function getMyAwakenedCards(playerId) {
-        const list = [];
-        for (let c = 1; c <= 6; c++) {
-          if (G.thrones[c].owner === playerId && G.thrones[c].level === 2) {
-            list.push(c);
-          }
-        }
-        return list;
       }
 
       function getAllyCommandTargets(playerId, selfCardNum) {
@@ -1427,6 +1384,14 @@
           if (G.thrones[c].owner === null) empties.push(c);
         }
         return empties;
+      }
+
+      function getMyAwakenedCards(playerId) {
+        const list = [];
+        for (let c = 1; c <= 6; c++) {
+          if (G.thrones[c].owner === playerId && G.thrones[c].level === 2) list.push(c);
+        }
+        return list;
       }
 
       function getAllActiveTokensOnBoard() {
@@ -1475,7 +1440,6 @@
         });
       }
 
-      // 預檢卡牌在特定層級下是否存在合法執行條件
       function canSkillExecuteForPlayer(cardNum, level, player) {
         if (cardNum === 1) {
           for (let c = 1; c <= 6; c++) {
@@ -1505,8 +1469,8 @@
         if (cardNum === 4) {
           return true;
         }
+        // #5 基礎【時空扭曲】與 #5 覺醒【時空裂隙】皆需場上存在敵方覺醒牌
         if (cardNum === 5) {
-          // #5 基礎【時空扭曲】與 #5 覺醒【時空裂隙】皆需王座區存在至少 1 張敵方【覺醒牌】
           for (let c = 1; c <= 6; c++) {
             if (G.thrones[c].owner !== null && G.thrones[c].owner !== player.id && G.thrones[c].level === 2) return true;
           }
@@ -1521,20 +1485,18 @@
         return false;
       }
 
-      // 階段 4 按鈕 A：放棄發動領 +1 幣（或無合法目標且無覺醒牌可撤回時自動保底）
       function fallbackPhase4Coin(isForced, customMsg = '') {
         const p = G.players[G.currentPlayerIdx];
         if (isForced) T.phase4CommandChoices.fallbackNoTarget++;
         else T.phase4CommandChoices.fallbackManual++;
         const gained = addCoin(p, 1, 'phase4Fallback');
         logEvent(customMsg
-          ? `${customMsg}（場上無己方覺醒牌可撤回，領取 +1 幣保底，實得 +${gained} 幣，當前 ${p.coins}/${lobbyConfig.maxCoins} 幣）`
-          : `🪙【階段 4 放棄發動：領 +1 幣】${p.seatTag} 選擇領取 +1 幣（實得 +${gained} 幣，當前 ${p.coins}/${lobbyConfig.maxCoins} 幣），結束回合。`
+          ? `${customMsg}（觸發零空轉保底：領取 +1 幣，實得 +${gained} 幣，當前 ${p.coins}/${lobbyConfig.maxCoins} 幣）`
+          : `🪙【階段 4 放棄領幣】${p.seatTag} 放棄發動權能，自公區領取 +1 幣（實得 +${gained} 幣，當前 ${p.coins}/${lobbyConfig.maxCoins} 幣），結束回合。`
         );
         endTurn();
       }
 
-      // 階段 4 按鈕 B：戰術撤回：退回我方 1 張覺醒牌（0 幣）
       function startPhase4Retreat() {
         if (G.phase !== 4 || G.subState !== 'COMMAND_CHOICE') return;
         const p = G.players[G.currentPlayerIdx];
@@ -1545,7 +1507,7 @@
         G.skillContext = {
           type: 'P4_RETREAT_AWAKENED',
           validThrones: myAwk,
-          title: '🏳️【戰術撤回 (0 幣)】：請點擊王座區任 1 張我方【覺醒牌】撤回個人陣地並翻回基礎面（勝分保留、不領幣、不發撫卹）'
+          title: '🏳️【階段 4 戰術撤回（0 幣）】：請點擊我方王座區 1 張【覺醒牌】主動撤回陣地翻回基礎面（勝分保留、不發撫卹、不領 +1 幣）'
         };
         renderAll();
       }
@@ -1554,15 +1516,21 @@
         if (G.phase !== 4 || G.subState !== 'COMMAND_CHOICE') return;
         const p = G.players[G.currentPlayerIdx];
         const { cardNum, finalLevel } = G.commandContext;
+
         if (!canSkillExecuteForPlayer(cardNum, finalLevel, p)) {
-          const title = finalLevel === 1 ? CARD_SPECS[cardNum].baseTitle : CARD_SPECS[cardNum].awkTitle;
           if (cardNum === 6 && finalLevel === 1) T.cavalryNoSpaceFallback++;
-          handleNoTargetSkill(`#${cardNum}【${title}】`);
+          if (getMyAwakenedCards(p.id).length > 0) {
+            G.commandContext.noTargetNotice = `⚠️ #${cardNum} 當前技能無合法目標可執行！請選擇「放棄發動：領 +1 幣」或「0 幣戰術撤回己方覺醒牌」${finalLevel === 2 ? '（或免費調度其他在場隊友）' : ''}。`;
+            renderAll();
+            return;
+          }
+          fallbackPhase4Coin(true, `🪙 #${cardNum} 當前技能無合法目標可執行`);
           return;
         }
+
         if (finalLevel === 1) {
           T.phase4CommandChoices.freeSelfBase++;
-          logEvent(`👑 ${p.seatTag} 免費發動當前 #${cardNum} 基礎技【${CARD_SPECS[cardNum].baseTitle}】！`);
+          logEvent(`⚡ ${p.seatTag} 免費發動當前 #${cardNum} 基礎技【${CARD_SPECS[cardNum].baseTitle}】！`);
           dispatchCardSkill(cardNum, 1);
         } else {
           T.phase4CommandChoices.freeSelfAwk++;
@@ -1571,50 +1539,27 @@
         }
       }
 
-      // 調度王座區我方其他在場隊友（V9.2.4：僅在覺醒登頂時開放且固定為 0 幣免費）
+      // V9.2.4：僅在「本回合剛完成覺醒」時開放免費調度我方其他在場隊友（0 幣）
       function triggerAllyCommand(allyCardNum) {
-        if (G.phase !== 4 || G.subState !== 'COMMAND_CHOICE') return;
+        if (G.phase !== 4 || G.subState !== 'COMMAND_CHOICE' || !G.commandContext) return;
+        if (G.commandContext.finalLevel !== 2) return;
         const p = G.players[G.currentPlayerIdx];
         const slot = G.thrones[allyCardNum];
-        const isCurrentCardAwakened = (G.commandContext.finalLevel === 2);
-        if (!isCurrentCardAwakened || !slot || slot.owner !== p.id) return;
-
-        if (!canSkillExecuteForPlayer(allyCardNum, slot.level, p)) {
-          const skillTitle = slot.level === 1 ? CARD_SPECS[allyCardNum].baseTitle : CARD_SPECS[allyCardNum].awkTitle;
-          if (allyCardNum === 6 && slot.level === 1) T.cavalryNoSpaceFallback++;
-          handleNoTargetSkill(`#${allyCardNum}【${skillTitle}】`);
-          return;
-        }
+        if (!slot || slot.owner !== p.id || allyCardNum === G.commandContext.cardNum) return;
+        if (!canSkillExecuteForPlayer(allyCardNum, slot.level, p)) return;
 
         if (slot.level === 1) {
           T.phase4CommandChoices.freeAllyBase++;
-          logEvent(`👑⚡ ${p.seatTag} 覺醒特權免費調度隊友 #${allyCardNum} 基礎技【${CARD_SPECS[allyCardNum].baseTitle}】！`);
+          logEvent(`👑⚡ ${p.seatTag} 發動【覺醒特權】免費調度隊友 #${allyCardNum} 基礎技【${CARD_SPECS[allyCardNum].baseTitle}】！`);
           dispatchCardSkill(allyCardNum, 1);
         } else {
           T.phase4CommandChoices.freeAllyAwk++;
-          logEvent(`👑⚡ ${p.seatTag} 覺醒特權免費調度隊友 #${allyCardNum} 覺醒技【${CARD_SPECS[allyCardNum].awkTitle}】！`);
+          logEvent(`👑⚡ ${p.seatTag} 發動【覺醒特權】免費調度隊友 #${allyCardNum} 覺醒技【${CARD_SPECS[allyCardNum].awkTitle}】！`);
           dispatchCardSkill(allyCardNum, 2);
         }
       }
 
-      // 無目標保底處理：若我方場上有覺醒牌，返回階段 4 面板提示改選領 +1 幣或 0 幣撤回；否則自動領 +1 幣保底
-      function handleNoTargetSkill(skillLabel) {
-        const p = G.players[G.currentPlayerIdx];
-        const myAwk = getMyAwakenedCards(p.id);
-        if (myAwk.length > 0) {
-          G.subState = 'COMMAND_CHOICE';
-          G.skillContext = null;
-          if (G.commandContext) {
-            G.commandContext.noTargetNotice = `⚠️ ${skillLabel} 無合法目標，請選擇【放棄發動：領 +1 幣】或【戰術撤回：退回我方 1 張覺醒牌（0 幣）】！`;
-          }
-          logEvent(`⚠️ ${p.seatTag} 宣告之 ${skillLabel} 無合法目標，請改選領 +1 幣或 0 幣撤回己方覺醒牌。`);
-          renderAll();
-          return;
-        }
-        fallbackPhase4Coin(true, `🪙 ${skillLabel} 無合法目標`);
-      }
-
-      // 1~6 號卡牌技能分發器 (V9.2.4 定案)
+      // 1~6 號卡牌技能分發器 (V9.2.4 定案：含 #5 覺醒【時空裂隙】)
       function dispatchCardSkill(cardNum, level) {
         const p = G.players[G.currentPlayerIdx];
 
@@ -1624,12 +1569,9 @@
           for (let c = 1; c <= 6; c++) {
             if (G.thrones[c].owner !== null && G.thrones[c].owner !== p.id && G.thrones[c].level === 1) targets.push(c);
           }
-          if (targets.length === 0) {
-            handleNoTargetSkill(`#1【刺客伏擊】`);
-            return;
-          }
+          if (targets.length === 0) { fallbackPhase4Coin(true, `🪙 #1【刺客伏擊】場上無敵方基礎牌可指定`); return; }
           G.subState = 'SKILL_TARGET';
-          G.skillContext = { type: 'BASE_1_ASSASSIN', validThrones: targets, title: '🗡️ #1【刺客伏擊】：請點擊王座區 1 張敵方【基礎牌】退回陣地（帶盾對手領+2幣）' };
+          G.skillContext = { type: 'BASE_1_ASSASSIN', validThrones: targets, title: '🗡️ #1【刺客伏擊】：請點擊王座區 1 張敵方【基礎牌】退回陣地（帶🛡️護盾則對手領 +2 幣）' };
           renderAll();
           return;
         }
@@ -1640,32 +1582,24 @@
           for (let c = 1; c <= 6; c++) {
             if (G.thrones[c].owner !== null && G.thrones[c].owner !== p.id && G.thrones[c].level === 1) targets.push(c);
           }
-          if (targets.length === 0) {
-            handleNoTargetSkill(`#1 覺醒【絕命影襲】`);
-            return;
-          }
+          if (targets.length === 0) { fallbackPhase4Coin(true, `🪙 #1 覺醒【絕命影襲】場上無敵方基礎牌可指定`); return; }
           G.subState = 'SKILL_TARGET';
-          G.skillContext = { type: 'AWK_1_SHADOW_STRIKE', validThrones: targets, title: '💀 #1 覺醒【絕命影襲】：請點擊王座區 1 張敵方【基礎牌】（先奪 1 幣再退牌，不截胡護盾撫卹）' };
+          G.skillContext = { type: 'AWK_1_SHADOW_STRIKE', validThrones: targets, title: '💀 #1 覺醒【絕命影襲】：請點擊王座區 1 張敵方【基礎牌】（先奪 1 幣再退牌，雙倍撫卹後發不截胡）' };
           renderAll();
           return;
         }
 
         // #2 基礎【堅定護航】
         if (cardNum === 2 && level === 1) {
-          if (G.supply.shield <= 0) {
-            handleNoTargetSkill(`#2【堅定護航】（公區無護盾）`);
-            return;
-          }
           const targets = [];
-          for (let c = 1; c <= 6; c++) {
-            if (G.thrones[c].owner === p.id && !G.thrones[c].shield) targets.push(c);
+          if (G.supply.shield > 0) {
+            for (let c = 1; c <= 6; c++) {
+              if (G.thrones[c].owner === p.id && !G.thrones[c].shield) targets.push(c);
+            }
           }
-          if (targets.length === 0) {
-            handleNoTargetSkill(`#2【堅定護航】（我方在場卡牌皆已掛盾）`);
-            return;
-          }
+          if (targets.length === 0) { fallbackPhase4Coin(true, `🪙 #2【堅定護航】無可用護盾或我方皆已掛盾`); return; }
           G.subState = 'SKILL_TARGET';
-          G.skillContext = { type: 'BASE_2_SHIELD', validThrones: targets, title: '🛡️ #2【堅定護航】：請點擊我方王座區 1 張未掛盾卡牌掛載【護盾】' };
+          G.skillContext = { type: 'BASE_2_SHIELD', validThrones: targets, title: '🛡️ #2【堅定護航】：請點擊我方王座區 1 張未掛盾卡牌掛載【護盾】（退回時領 +2 幣）' };
           renderAll();
           return;
         }
@@ -1673,12 +1607,9 @@
         // #2 覺醒【乾坤轉移】
         if (cardNum === 2 && level === 2) {
           const sources = getTransferableTokenSources();
-          if (sources.length === 0) {
-            handleNoTargetSkill(`#2 覺醒【乾坤轉移】`);
-            return;
-          }
+          if (sources.length === 0) { fallbackPhase4Coin(true, `🪙 #2 覺醒【乾坤轉移】場上無可合法轉移之標記物`); return; }
           G.subState = 'SKILL_TARGET';
-          G.skillContext = { type: 'AWK_2_STEP1', sources, title: '🔄 #2 覺醒【乾坤轉移】(步驟1/2)：請選取要轉移的標記物來源（護盾 / 機運 / 軍令）' };
+          G.skillContext = { type: 'AWK_2_STEP1', sources, title: '🔄 #2 覺醒【乾坤轉移】(步驟1/2)：請選取要轉移的標記物來源（🛡️護盾 / 🎲機運 / ⚔️軍令）' };
           renderAll();
           return;
         }
@@ -1689,10 +1620,7 @@
           for (let c = 1; c <= 6; c++) {
             if (G.thrones[c].owner === p.id && G.thrones[c].level === 1) targets.push(c);
           }
-          if (targets.length === 0) {
-            handleNoTargetSkill(`#3【奧術召喚】`);
-            return;
-          }
+          if (targets.length === 0) { fallbackPhase4Coin(true, `🪙 #3【奧術召喚】我方無在場基礎牌可充能`); return; }
           G.subState = 'SKILL_TARGET';
           G.skillContext = { type: 'BASE_3_SUMMON', validThrones: targets, title: '🔮 #3【奧術召喚】：請點擊我方王座區 1 張【基礎牌】立即充能翻面覺醒得分！' };
           renderAll();
@@ -1701,15 +1629,12 @@
 
         // #3 覺醒【逆天改運】
         if (cardNum === 3 && level === 2) {
-          if (G.supply.fortune <= 0 || p.fortune) {
-            handleNoTargetSkill(`#3 覺醒【逆天改運】`);
-            return;
-          }
+          if (G.supply.fortune <= 0 || p.fortune) { fallbackPhase4Coin(true, `🪙 #3 覺醒【逆天改運】無法領取機運`); return; }
           p.fortune = true;
           G.supply.fortune = Math.max(0, G.supply.fortune - 1);
           T.cards[3].awkTriggered++;
           T.tokenStats.fortuneApplied++;
-          logEvent(`🎲 #3 覺醒【逆天改運】生效：${p.seatTag} [${p.name}] 領取 1 枚【機運】置於自己面前（下回合階段 1 執行天命 2 骰選 1）！`);
+          logEvent(`🎲 #3 覺醒【逆天改運】生效：${p.seatTag} [${p.name}] 領取 1 枚【機運】置於自己面前（下回合階段 1 天命 2 選 1）！`);
           endTurn();
           return;
         }
@@ -1729,7 +1654,7 @@
           if (richOpps.length === 0) {
             T.cards[4].awkTriggered++;
             const gained = addCoin(p, 2, 'card4AwkSupply');
-            logEvent(`🪙 #4 覺醒【強權掠奪】生效：對手皆為 0 幣，${p.seatTag} 直接自公區領取 2 枚行動幣（實得 +${gained} 幣，當前 ${p.coins}/${lobbyConfig.maxCoins} 幣）。`);
+            logEvent(`🪙 #4 覺醒【強權掠奪】生效：所有對手皆為 0 幣，${p.seatTag} 直接自公區領取 2 枚行動幣（實得 +${gained} 幣，當前 ${p.coins}/${lobbyConfig.maxCoins} 幣）。`);
             endTurn();
             return;
           }
@@ -1739,34 +1664,28 @@
           return;
         }
 
-        // #5 基礎【時空扭曲】
+        // #5 基礎【時空扭曲】（拆敵覺醒牌＋我方同號基礎牌搶佔）
         if (cardNum === 5 && level === 1) {
           const targets = [];
           for (let c = 1; c <= 6; c++) {
             if (G.thrones[c].owner !== null && G.thrones[c].owner !== p.id && G.thrones[c].level === 2) targets.push(c);
           }
-          if (targets.length === 0) {
-            handleNoTargetSkill(`#5【時空扭曲】`);
-            return;
-          }
+          if (targets.length === 0) { fallbackPhase4Coin(true, `🪙 #5【時空扭曲】場上無敵方覺醒牌可指定`); return; }
           G.subState = 'SKILL_TARGET';
-          G.skillContext = { type: 'BASE_5_REVERT_SEIZE', validThrones: targets, title: '🌀 #5【時空扭曲】：請點擊王座區 1 張敵方【覺醒牌】退回陣地，並立即以我方同號基礎牌搶佔該格！' };
+          G.skillContext = { type: 'BASE_5_REVERT_SEIZE', validThrones: targets, title: '🌀 #5【時空扭曲】：請點擊王座區 1 張敵方【覺醒牌】退回陣地，並由我方同號手牌搶佔該格（純站位不發技）！' };
           renderAll();
           return;
         }
 
-        // #5 覺醒【時空裂隙】
+        // #5 覺醒【時空裂隙】（拆敵覺醒牌＋雙倍撫卹＋我方同號基礎牌搶佔＋自公區領 +1 幣）
         if (cardNum === 5 && level === 2) {
           const targets = [];
           for (let c = 1; c <= 6; c++) {
             if (G.thrones[c].owner !== null && G.thrones[c].owner !== p.id && G.thrones[c].level === 2) targets.push(c);
           }
-          if (targets.length === 0) {
-            handleNoTargetSkill(`#5 覺醒【時空裂隙】`);
-            return;
-          }
+          if (targets.length === 0) { fallbackPhase4Coin(true, `🪙 #5 覺醒【時空裂隙】場上無敵方覺醒牌可指定`); return; }
           G.subState = 'SKILL_TARGET';
-          G.skillContext = { type: 'AWK_5_WARP_RIFT', validThrones: targets, title: '🌌 #5 覺醒【時空裂隙】：請點擊王座區 1 張敵方【覺醒牌】退回陣地、我方同號基礎牌搶佔該格，並領取 +1 幣！' };
+          G.skillContext = { type: 'AWK_5_WARP_RIFT', validThrones: targets, title: '🌌 #5 覺醒【時空裂隙】：請點擊王座區 1 張敵方【覺醒牌】退回陣地、我方同號基礎牌搶佔該格，並自公區領取 +1 幣！' };
           renderAll();
           return;
         }
@@ -1776,7 +1695,7 @@
           const empties = getEmptyCavalrySlots();
           if (empties.length === 0) {
             T.cavalryNoSpaceFallback++;
-            handleNoTargetSkill(`🐎 #6【騎兵突進】（王座區 1～5 號無空格）`);
+            fallbackPhase4Coin(true, `🐎 #6【騎兵突進】王座區 1～5 號已全滿無空格可突進`);
             return;
           }
           G.subState = 'SKILL_TARGET';
@@ -1791,21 +1710,18 @@
 
         // #6 覺醒【鐵蹄軍令】
         if (cardNum === 6 && level === 2) {
-          if (G.supply.warOrder <= 0 || p.warOrder) {
-            handleNoTargetSkill(`#6 覺醒【鐵蹄軍令】`);
-            return;
-          }
+          if (G.supply.warOrder <= 0 || p.warOrder) { fallbackPhase4Coin(true, `🪙 #6 覺醒【鐵蹄軍令】無法領取軍令`); return; }
           p.warOrder = true;
           G.supply.warOrder = Math.max(0, G.supply.warOrder - 1);
           T.cards[6].awkTriggered++;
           T.tokenStats.warOrderApplied++;
-          logEvent(`⚔️ #6 覺醒【鐵蹄軍令】生效：${p.seatTag} [${p.name}] 領取 1 枚【軍令】置於自己面前（下回合階段 2 意志骰折抵 1 幣、0 幣免破產）！`);
+          logEvent(`⚔️ #6 覺醒【鐵蹄軍令】生效：${p.seatTag} [${p.name}] 領取 1 枚【軍令】置於自己面前（下回合階段 2 意志骰折抵 1 幣且 0 幣免破產）！`);
           endTurn();
           return;
         }
       }
 
-      // 處理點擊王座區目標 (階段 4 技能互動)
+      // 處理點擊王座區目標
       function handleThroneClick(cardNum) {
         if (G.phase !== 4 || G.subState !== 'SKILL_TARGET' || !G.skillContext) return;
         const p = G.players[G.currentPlayerIdx];
@@ -1817,9 +1733,9 @@
         if (ctx.type === 'BASE_1_ASSASSIN') {
           T.cards[1].baseTriggered++;
           const def = G.players[slot.owner];
-          logEvent(`🗡️ #1【刺客伏擊】將 ${def.seatTag} 的 #${cardNum} 基礎牌退回個人陣地！`);
+          logEvent(`🗡️ #1【刺客伏擊】將 ${def.seatTag} 的 #${cardNum} 基礎牌退回陣地！`);
           if (slot.shield) {
-            triggerShieldInsurance(slot, def, cardNum, 'SKILL', '受敵方 #1【刺客伏擊】');
+            triggerShieldInsurance(slot, def, cardNum, 'SKILL', '受敵方 #1【刺客伏擊】命中');
           }
           slot.owner = null;
           slot.level = 0;
@@ -1837,9 +1753,9 @@
             stolen = 1;
             addCoin(p, 1, 'card1AwkSteal');
           }
-          logEvent(`💀 #1 覺醒【絕命影襲】：${p.seatTag} 先強奪 ${def.seatTag} ${stolen} 幣，再將其 #${cardNum} 基礎牌退回陣地！`);
+          logEvent(`💀 #1 覺醒【絕命影襲】：${p.seatTag} 先強奪 ${def.seatTag} ${stolen} 幣（對方原${def.coins + stolen}幣），再將其 #${cardNum} 基礎牌退回陣地！`);
           if (slot.shield) {
-            triggerShieldInsurance(slot, def, cardNum, 'SKILL', '受敵方 #1 覺醒【絕命影襲】');
+            triggerShieldInsurance(slot, def, cardNum, 'SKILL', '受敵方 #1 覺醒【絕命影襲】命中');
           }
           slot.owner = null;
           slot.level = 0;
@@ -1853,7 +1769,7 @@
           slot.shield = true;
           G.supply.shield = Math.max(0, G.supply.shield - 1);
           T.tokenStats.shieldApplied++;
-          logEvent(`🛡️ #2【堅定護航】為 ${p.seatTag} 的 #${cardNum} 掛載了【護盾】（退回陣地享 +2 幣雙倍撫卹）！`);
+          logEvent(`🛡️ #2【堅定護航】為 ${p.seatTag} 的 #${cardNum} 掛載了【護盾】（退回時領 +2 幣雙倍撫卹）！`);
           endTurn();
           return;
         }
@@ -1882,26 +1798,26 @@
           return;
         }
 
-        // #5 基礎【時空扭曲】
+        // #5 基礎【時空扭曲】：退回敵方覺醒牌 ➔ 雙倍護盾撫卹 ➔ 我方同號基礎牌搶佔
         if (ctx.type === 'BASE_5_REVERT_SEIZE') {
           T.cards[5].baseTriggered++;
           T.warpSeizeCount++;
           T.cards[cardNum].pushed++;
           T.cards[cardNum].warpSeizedCount++;
           const def = G.players[slot.owner];
-          logEvent(`🌀 #5【時空扭曲】將 ${def.seatTag} 的 #${cardNum} 覺醒牌退回個人陣地翻回基礎面！`);
+          logEvent(`🌀 #5【時空扭曲】將 ${def.seatTag} 的 #${cardNum} 覺醒牌退回陣地翻回基礎面！`);
           if (slot.shield) {
-            triggerShieldInsurance(slot, def, cardNum, 'SKILL', '受敵方 #5【時空扭曲】倒轉');
+            triggerShieldInsurance(slot, def, cardNum, 'SKILL', '受敵方 #5【時空扭曲】命中');
           }
           slot.owner = p.id;
           slot.level = 1;
           slot.shield = false;
-          logEvent(`🏰【時空搶位】${p.seatTag} 立即將個人陣地的 #${cardNum}【${CARD_SPECS[cardNum].baseName}】以基礎面進駐 #${cardNum} 王座格（純站位不發技）！`);
+          logEvent(`🏰【時空搶位】${p.seatTag} 立即將手牌 #${cardNum}【${CARD_SPECS[cardNum].baseName}】以基礎面進駐王座區 #${cardNum}（純站位不發技）！`);
           endTurn();
           return;
         }
 
-        // #5 覺醒【時空裂隙】：1.退敵覺醒牌 ➔ 2.若帶盾發+2幣撫卹 ➔ 3.我方同號基礎牌進駐站位 ➔ 4.自公區領+1幣
+        // #5 覺醒【時空裂隙】：退回敵方覺醒牌 ➔ 雙倍護盾撫卹 ➔ 我方同號基礎牌搶佔 ➔ 自公區領 +1 幣
         if (ctx.type === 'AWK_5_WARP_RIFT') {
           T.cards[5].awkTriggered++;
           T.warpSeizeCount++;
@@ -1910,18 +1826,18 @@
           const def = G.players[slot.owner];
           logEvent(`🌌 #5 覺醒【時空裂隙】將 ${def.seatTag} 的 #${cardNum} 覺醒牌退回陣地翻回基礎面！`);
           if (slot.shield) {
-            triggerShieldInsurance(slot, def, cardNum, 'SKILL', '受敵方 #5 覺醒【時空裂隙】倒轉');
+            triggerShieldInsurance(slot, def, cardNum, 'SKILL', '受敵方 #5 覺醒【時空裂隙】命中');
           }
           slot.owner = p.id;
           slot.level = 1;
           slot.shield = false;
           const gained = addCoin(p, 1, 'card5AwkSupply');
-          logEvent(`🏰💰【時空裂隙搶位補給】${p.seatTag} 立即以我方 #${cardNum}【${CARD_SPECS[cardNum].baseName}】基礎面搶佔該格（純站位不發技），並自公區領取 +1 幣（實得 +${gained} 幣，當前 ${p.coins}/${lobbyConfig.maxCoins} 幣）！`);
+          logEvent(`🏰🪙【時空裂隙搶佔】${p.seatTag} 以手牌 #${cardNum} 基礎面搶佔該格（純站位不發技），並自公區領取 +1 幣（實得 +${gained} 幣，當前 ${p.coins}/${lobbyConfig.maxCoins} 幣）！`);
           endTurn();
           return;
         }
 
-        // 階段 4 按鈕 B【戰術撤回：退回我方 1 張覺醒牌（0 幣）】
+        // 階段 4 放棄二擇一：0 幣戰術撤回己方覺醒牌
         if (ctx.type === 'P4_RETREAT_AWAKENED') {
           T.phase4CommandChoices.fallbackRetreat0Coin++;
           T.cards[cardNum].tacticalRetreats++;
@@ -1931,12 +1847,11 @@
           }
           slot.owner = null;
           slot.level = 0;
-          logEvent(`🏳️【階段 4 戰術撤回 (0 幣)】${p.seatTag} 主動撤回王座區 #${cardNum} 覺醒牌回陣地翻回基礎面（勝分保留、不領幣、不發撫卹）！`);
+          logEvent(`🏳️【階段 4 戰術撤回（0 幣）】${p.seatTag} 將王座區我方 #${cardNum} 覺醒牌主動撤回陣地翻回基礎面（勝分保留、不發撫卹、不領 +1 幣）！`);
           endTurn();
           return;
         }
 
-        // #6 基礎【騎兵突進】
         if (ctx.type === 'BASE_6_CAVALRY') {
           T.cards[6].baseTriggered++;
           T.cavalryAdvanceCount++;
@@ -2047,54 +1962,106 @@
       }
 
       // ============================================================================
-      // AI 智慧決策引擎（完整同步 V9.2.4：移除連擊退幣加分與未覺醒隊友調度迴圈）
+      // AI 智慧決策引擎（V9.2.4 真人思維調優版：破產唯得分、動態護盾戒心、領先者集火、防破產底線與存錢爆發）
       // ============================================================================
-      function evaluatePhase2ActionScore(player, act) {
-        const slot = G.thrones[act.target];
-        const pts = CARD_SPECS[act.target].points;
-        const shieldPenalty = (slot.owner !== null && slot.owner !== player.id && slot.shield) ? 15 : 0;
-        let baseScore = 0;
 
-        if (act.mode === 'DOUBLES') {
-          if (slot.owner === player.id && slot.level === 1) {
-            // V9.2.4：移除原本 +1 幣退費估值，保留強行覺醒斬殺估值
-            baseScore = 106 + pts * 18;
-          } else if (slot.owner === null) {
-            baseScore = 105 + pts * 18;
-          } else if (slot.level === 1) {
-            baseScore = 102 + pts * 18 - shieldPenalty;
-          } else if (slot.level === 2) {
-            baseScore = 98 + pts * 18 - 11 - shieldPenalty;
-          }
-          if (player.score + pts >= lobbyConfig.targetVP) baseScore += 500;
+      // 輔助：計算對敵方掛盾牌的「動態護盾懲罰」（依對方實際拿到的淨幣數決定戒心）
+      function calcDynamicShieldPenalty(slot, attackerId, coinWeight = 3.2, zeroCoinExtra = 2.0) {
+        if (!slot || slot.owner === null || slot.owner === attackerId || !slot.shield) return 0;
+        const defCoins = G.players[slot.owner].coins;
+        const actualGift = Math.min(2, Math.max(0, lobbyConfig.maxCoins - defCoins));
+        let penalty = actualGift * coinWeight;
+        if (defCoins === 0 && actualGift === 2) penalty += zeroCoinExtra; // 絕不白幫 0 幣對手脫離破產
+        return penalty;
+      }
+
+      // 一、破產協議評分器（唯得分或拆掉 >=8 分聽牌領先者的無盾基礎牌才出手，其餘乖乖棄骰領 +2 幣）
+      function evaluateBankruptActionScore(player, act) {
+        const t = act.target;
+        const slot = G.thrones[t];
+        const willAwaken = slot && slot.owner === player.id && slot.level === 1;
+        if (willAwaken) {
+          const pts = CARD_SPECS[t].points;
+          const lethal = (player.score + pts >= lobbyConfig.targetVP) ? 500 : 0;
+          return 30 + pts * 5 + lethal;
+        }
+        const isLeaderBasic = slot && slot.owner !== null && slot.owner !== player.id && slot.level === 1 && G.players[slot.owner].score >= 8;
+        if (isLeaderBasic && !slot.shield) return 12; // 聽牌斷分才勉強免費撞
+        return -5; // 其餘情況一律輸給 bankrupt_regroup (8.0)
+      }
+
+      // 五、常規階段 2 主動休整評分（1 幣休整跳 3 幣解鎖單回合爆發；4 人局 2 幣視情況存到 4 幣）
+      function evaluatePhase2RestScore(player) {
+        if (player.coins >= lobbyConfig.maxCoins) return -999;
+        if (player.warOrder) return -6.0; // 持有軍令時避免白白浪費
+        if (player.coins === 1) return 4.2; // 1 幣休整直接跳 3 幣（解鎖下回合 3 幣連擊），優於垃圾推牌
+        if (player.coins === 2 && G.players.length >= 4) return 2.5; // 4P 局存 4 幣備戰硬拆覺醒連擊
+        return -6.0;
+      }
+
+      // 二 & 三、常規階段 2 行動評分器（統一尺度：與護盾動態戒心、領先者集火、避打覺醒牌與休整基準對齊）
+      function evaluatePhase2ActionScore(player, act) {
+        const t = act.target;
+        const slot = G.thrones[t];
+        const pts = CARD_SPECS[t].points;
+        const willAwaken = (act.mode === 'DOUBLES') || (slot.owner === player.id && slot.level === 1);
+        const totalCoinCost = act.cost + (act.isEnemyAwk ? 1 : 0);
+        let score = 0;
+
+        if (willAwaken) {
+          // 覺醒登頂得分（含同點連擊強行覺醒，移除連擊退幣加分）
+          score = 14.0 + pts * 4.5;
+          if (player.score + pts >= lobbyConfig.targetVP) score += 500;
         } else {
-          if (slot.owner === player.id && slot.level === 1) {
-            baseScore = 98 + pts * 18;
-            if (player.score + pts >= lobbyConfig.targetVP) baseScore += 500;
-          } else if (slot.owner === null) {
-            baseScore = 56 + pts * 8;
-            if (act.target === 6 && getEmptyCavalrySlots().length > 0) baseScore += 22;
-            if (act.target === 5 && [1, 2, 3, 4, 6].some(c => G.thrones[c].owner !== null && G.thrones[c].owner !== player.id && G.thrones[c].level === 2)) {
-              baseScore += 28;
-            }
-          } else if (slot.level === 1) {
-            baseScore = 64 + pts * 8 - shieldPenalty;
-            if (act.target === 3) baseScore += 14;
-            if (act.target === 5 && [1, 2, 3, 4, 6].some(c => G.thrones[c].owner !== null && G.thrones[c].owner !== player.id && G.thrones[c].level === 2)) {
-              baseScore += 24;
-            }
+          // 推入第一層基礎牌站位
+          score = 3.5 + (slot.owner === null ? pts * 1.0 : 0);
+
+          // 單回合即時收益／鋪場引擎加權（確保 #3 自覺醒、#4 補幣、#5 時空搶位與 #6 突進不被 1 幣休整誤蓋）
+          if (t === 3) {
+            score += 8.0;
+            if (player.score + 1 >= lobbyConfig.targetVP) score += 200;
+          } else if (t === 4) {
+            const coinRefill = Math.min(2, Math.max(0, lobbyConfig.maxCoins - (player.coins - totalCoinCost)));
+            score += coinRefill * 2.0;
+          } else if (t === 5) {
+            const hasEnemyAwk = [1, 2, 3, 4, 6].some(c => G.thrones[c].owner !== null && G.thrones[c].owner !== player.id && G.thrones[c].level === 2);
+            if (hasEnemyAwk) score += 4.5;
+          } else if (t === 6 && getEmptyCavalrySlots().length > 0) {
+            score += 3.5;
+          }
+        }
+
+        // 若覺醒登頂 #5 且場上有敵方覺醒牌可發動【時空裂隙】，額外加分
+        if (t === 5 && willAwaken) {
+          const hasEnemyAwk = [1, 2, 3, 4, 6].some(c => G.thrones[c].owner !== null && G.thrones[c].owner !== player.id && G.thrones[c].level === 2);
+          if (hasEnemyAwk) score += 5.0;
+        }
+
+        // 三、領先者圍毆與「避打覺醒牌」權重
+        if (slot && slot.owner !== null && slot.owner !== player.id) {
+          const opp = G.players[slot.owner];
+          const maxOppVP = Math.max(...G.players.filter(x => x.id !== player.id).map(x => x.score));
+          const isLeader = (opp.score === maxOppVP && opp.score >= 5);
+
+          if (slot.level === 1) {
+            // 敵方基礎牌：免費斷分＋搶位
+            score += pts * 1.4;
+            if (isLeader) score += (opp.score >= 8 ? 6.5 : 3.0); // 領先者基礎牌高度集火
+            if (t === 3) score += 2.0; // 優先清除敵方 #3 召喚引擎
           } else if (slot.level === 2) {
-            baseScore = 72 + pts * 10 - 11 - shieldPenalty;
+            // 敵方覺醒牌：要花 1 幣＋幫對方解鎖刷分，除非能用 #3 自覺醒或我方聽牌，否則重罰避開
+            score -= 4.2;
+            // 例外：若對方場上是 #4 覺醒牌且對手領先，減輕懲罰
+            if (t === 4 && opp.score >= 6) score += 2.0;
           }
         }
-        // 若推入 #5 並準備覺醒（或直接連擊覺醒 #5），且場上有敵方覺醒牌可發動【時空裂隙】，額外加分
-        if (act.target === 5 && ((act.mode === 'DOUBLES' && slot.owner !== player.id) || (act.mode !== 'DOUBLES' && slot.owner === player.id && slot.level === 1))) {
-          if ([1, 2, 3, 4, 6].some(c => G.thrones[c].owner !== null && G.thrones[c].owner !== player.id && G.thrones[c].level === 2)) {
-            baseScore += 30;
-          }
-        }
-        const warOrderBonus = act.usedWarOrder ? 14 : 0;
-        return baseScore + warOrderBonus - act.cost * 11;
+
+        // 二、護盾動態戒心（看對手餘額決定實送淨幣懲罰；滿幣溢出不罰、0 幣對手重罰）
+        score -= calcDynamicShieldPenalty(slot, player.id, 3.2, 2.0);
+
+        // 軍費消耗與軍令即期獎勵
+        const warOrderBonus = act.usedWarOrder ? 2.5 : 0;
+        return score + warOrderBonus - totalCoinCost * 2.2;
       }
 
       function aiExecutePhase1() {
@@ -2105,15 +2072,26 @@
         if (G.subState === 'FORTUNE_PICK_ONE') {
           let bestIdx = 0, bestVal = -9999;
           G.rawFateDice.forEach((D, idx) => {
-            let maxForD = 20;
+            let maxForD = -999;
             if (p.coins > 0 || p.warOrder) {
               for (let W = 1; W <= 6; W++) {
                 getWillDieActions(p, D, W, false).forEach(act => {
                   if (act.canAfford) maxForD = Math.max(maxForD, evaluatePhase2ActionScore(p, act));
                 });
               }
+              maxForD = Math.max(maxForD, evaluatePhase2RestScore(p));
             } else {
-              maxForD = (D <= 3) ? 45 : 30;
+              // 破產狀態下估算各天命骰之期望得分／斷聽牌價值
+              let expVal = 0;
+              for (let W = 1; W <= 6; W++) {
+                const acts = getWillDieActions(p, D, W, true);
+                let bestW = 8.0; // bankrupt_regroup
+                acts.forEach(act => {
+                  bestW = Math.max(bestW, evaluateBankruptActionScore(p, act));
+                });
+                expVal += bestW / 6;
+              }
+              maxForD = expVal;
             }
             if (maxForD > bestVal) { bestVal = maxForD; bestIdx = idx; }
           });
@@ -2131,12 +2109,18 @@
 
         if (G.subState === 'BANKRUPT_ASSIGN') {
           const actions = getWillDieActions(p, G.fateDie, G.bankruptWillDie, true);
-          let bestAct = null, bestSc = -9999;
+          const bankruptRegroupScore = 8.0;
+          let bestAct = null, bestSc = bankruptRegroupScore;
+
           actions.forEach(act => {
-            const sc = evaluatePhase2ActionScore(p, act);
-            if (sc > bestSc) { bestSc = sc; bestAct = act; }
+            const sc = evaluateBankruptActionScore(p, act);
+            if (sc > bestSc) {
+              bestSc = sc;
+              bestAct = act;
+            }
           });
-          if (bestAct && bestSc >= 45) {
+
+          if (bestAct) {
             executePhase2Action(bestAct.willDie, bestAct.mode);
           } else {
             executePhase2Rest();
@@ -2153,8 +2137,8 @@
           });
         }
 
-        const restThreshold = p.warOrder ? 20 : (p.coins <= 1 ? 52 : (p.coins < lobbyConfig.maxCoins ? 28 : -999));
-        if (bestAct && bestSc >= restThreshold) {
+        const restScore = evaluatePhase2RestScore(p);
+        if (bestAct && bestSc > restScore) {
           executePhase2Action(bestAct.willDie, bestAct.mode);
         } else {
           executePhase2Rest();
@@ -2174,9 +2158,12 @@
         return -1;
       }
 
-      // 評估單張卡牌技能的戰術效用值（供階段 4 候選評分器比價）
+      // 評估單張卡牌技能的戰術效用值（同步整合防破產底線、動態護盾戒心與領先者集火）
       function evaluateSkillUtility(cNum, lvl, player) {
         if (!canSkillExecuteForPlayer(cNum, lvl, player)) return -999;
+
+        const urgentNoBankrupt = (player.coins === 0 && !player.warOrder);
+        const maxOppVP = Math.max(...G.players.filter(x => x.id !== player.id).map(x => x.score));
 
         if (cNum === 3 && lvl === 1) {
           let bestPts = 1;
@@ -2190,39 +2177,50 @@
         }
 
         if (cNum === 5) {
-          let bestWarpVal = 0;
+          let bestWarpVal = -999;
           for (let c = 1; c <= 6; c++) {
             const sl = G.thrones[c];
             if (sl.owner !== null && sl.owner !== player.id && sl.level === 2) {
-              const shieldPen = sl.shield ? 1.4 : 0;
+              const shieldPen = calcDynamicShieldPenalty(sl, player.id, 1.3, 0.9);
               const ptsBonus = CARD_SPECS[c].points * 0.7;
-              bestWarpVal = Math.max(bestWarpVal, 3.2 + ptsBonus - shieldPen);
+              const opp = G.players[sl.owner];
+              const leaderBonus = (opp.score === maxOppVP && opp.score >= 5) ? 0.8 : 0;
+              bestWarpVal = Math.max(bestWarpVal, 2.8 + ptsBonus + leaderBonus - shieldPen);
             }
           }
-          if (lvl === 2) {
-            bestWarpVal += Math.min(1, lobbyConfig.maxCoins - player.coins) * 1.45;
+          if (lvl === 2 && player.coins < lobbyConfig.maxCoins) {
+            // #5 覺醒【時空裂隙】自帶 +1 幣，於 0 幣防破產狀態下同樣能救回現金流
+            bestWarpVal += urgentNoBankrupt ? 4.2 : 1.5;
           }
           return bestWarpVal;
         }
 
         if (cNum === 4) {
-          const gainCoins = Math.min(2, lobbyConfig.maxCoins - player.coins);
+          const gainCoins = Math.min(2, Math.max(0, lobbyConfig.maxCoins - player.coins));
+          const coinGainVal = gainCoins === 0
+            ? 0
+            : (urgentNoBankrupt ? (4.2 + (gainCoins - 1) * 1.5) : gainCoins * 1.5);
           const oppHasCoin = G.players.some(pl => pl.id !== player.id && pl.coins > 0);
-          return gainCoins * 1.45 + (lvl === 2 && oppHasCoin ? 1.1 : 0);
+          return coinGainVal + (lvl === 2 && oppHasCoin ? 1.1 : 0);
         }
 
         if (cNum === 6 && lvl === 1) return 3.3;
-        if (cNum === 6 && lvl === 2) return 3.4;
+        if (cNum === 6 && lvl === 2) return urgentNoBankrupt ? 4.3 : 3.4; // 軍令亦可免下回合破產
         if (cNum === 3 && lvl === 2) return 3.1;
 
         if (cNum === 1) {
-          let bestVal = 0;
+          let bestVal = -999;
           for (let c = 1; c <= 6; c++) {
             const sl = G.thrones[c];
             if (sl.owner !== null && sl.owner !== player.id && sl.level === 1) {
-              const shieldPen = sl.shield ? 1.4 : 0;
-              const stealBonus = (lvl === 2 && G.players[sl.owner].coins > 0) ? Math.min(1, lobbyConfig.maxCoins - player.coins) * 1.45 : 0;
-              bestVal = Math.max(bestVal, 2.6 + CARD_SPECS[c].points * 0.45 + stealBonus - shieldPen);
+              const opp = G.players[sl.owner];
+              const shieldPen = calcDynamicShieldPenalty(sl, player.id, 1.3, 0.9);
+              const isLeader = (opp.score === maxOppVP && opp.score >= 5);
+              const leaderBonus = isLeader ? (opp.score >= 8 ? 2.4 : 1.1) : 0;
+              const stealBonus = (lvl === 2 && opp.coins > 0 && player.coins < lobbyConfig.maxCoins)
+                ? (urgentNoBankrupt ? 4.2 : 1.5)
+                : 0;
+              bestVal = Math.max(bestVal, 2.4 + CARD_SPECS[c].points * 0.45 + leaderBonus + stealBonus - shieldPen);
             }
           }
           return bestVal;
@@ -2237,7 +2235,7 @@
         return 1.0;
       }
 
-      // 階段 4 候選評分器（resolvePhase4AI — V9.2.4 僅覺醒時評估免費隊友調度）
+      // 四、階段 4 候選評分器（加入「防破產底線」現金流警戒線）
       function resolvePhase4AI() {
         const p = G.players[G.currentPlayerIdx];
         const { cardNum, finalLevel } = G.commandContext;
@@ -2264,14 +2262,17 @@
           });
         }
 
-        const coinFallbackScore = p.coins < lobbyConfig.maxCoins ? 1.45 : 0;
-        candidates.push({ type: 'FALLBACK_COIN', score: coinFallbackScore });
+        // 防破產底線：餘額歸 0 且無軍令時，領 +1 幣權重拉高至 4.2，避免下回合破產喪失手選權
+        const urgentNoBankrupt = (p.coins === 0 && !p.warOrder);
+        const fbCoinVal = p.coins >= lobbyConfig.maxCoins ? 0 : (urgentNoBankrupt ? 4.2 : 1.5);
+        candidates.push({ type: 'FALLBACK_COIN', score: fbCoinVal });
 
+        // 0 幣戰術撤回己方覺醒牌：僅於「不缺錢（非防破產緊急狀態）」時參與競爭
         const myAwk = getMyAwakenedCards(p.id);
-        if (myAwk.length > 0) {
+        if (myAwk.length > 0 && !urgentNoBankrupt) {
           const bestAwkCard = [...myAwk].sort((a, b) => CARD_SPECS[b].points - CARD_SPECS[a].points)[0];
           const cardVP = CARD_SPECS[bestAwkCard].points;
-          const retreatScore = cardVP * 0.75 + (myAwk.length >= 2 ? 1.0 : 0.35);
+          const retreatScore = cardVP * 0.8 + (myAwk.length >= 2 ? 1.4 : 0.2);
           candidates.push({ type: 'FALLBACK_RETREAT', cardNum: bestAwkCard, score: retreatScore });
         }
 
@@ -2309,6 +2310,7 @@
         if (G.gameOver || G.phase !== 4 || G.subState !== 'SKILL_TARGET' || !G.skillContext) return;
         const p = G.players[G.currentPlayerIdx];
         const ctx = G.skillContext;
+        const maxOppVP = Math.max(...G.players.filter(x => x.id !== p.id).map(x => x.score));
 
         if (ctx.type === 'BASE_3_SUMMON') {
           const sorted = [...ctx.validThrones].sort((a, b) => CARD_SPECS[b].points - CARD_SPECS[a].points);
@@ -2323,15 +2325,18 @@
           return;
         }
 
-        // #5 基礎【時空扭曲】 & #5 覺醒【時空裂隙】優先級：無護盾 ➔ 2 分格 ➔ 領先者
+        // #5 基礎【時空扭曲】 & #5 覺醒【時空裂隙】：動態護盾淨贈幣最少 ➔ 2 分格 ➔ 領先者
         if (ctx.type === 'BASE_5_REVERT_SEIZE' || ctx.type === 'AWK_5_WARP_RIFT') {
-          const sorted = [...ctx.validThrones].sort((a, b) => {
-            const shieldDiff = (G.thrones[a].shield ? 1 : 0) - (G.thrones[b].shield ? 1 : 0);
-            if (shieldDiff !== 0) return shieldDiff;
-            const ptsDiff = CARD_SPECS[b].points - CARD_SPECS[a].points;
-            if (ptsDiff !== 0) return ptsDiff;
-            return G.players[G.thrones[b].owner].score - G.players[G.thrones[a].owner].score;
-          });
+          const scoreTarget = (c) => {
+            const sl = G.thrones[c];
+            const opp = G.players[sl.owner];
+            const isLeader = (opp.score === maxOppVP && opp.score >= 5);
+            return CARD_SPECS[c].points * 2.5
+              + opp.score * 0.6
+              + (isLeader ? 2.5 : 0)
+              - calcDynamicShieldPenalty(sl, p.id, 3.2, 2.0);
+          };
+          const sorted = [...ctx.validThrones].sort((a, b) => scoreTarget(b) - scoreTarget(a));
           handleThroneClick(sorted[0]);
           return;
         }
@@ -2349,14 +2354,20 @@
           return;
         }
 
+        // #1 基礎【刺客伏擊】 & #1 覺醒【絕命影襲】：優先狙擊領先者基礎牌＋動態護盾戒心＋優先拆 #3
         if (ctx.type === 'BASE_1_ASSASSIN' || ctx.type === 'AWK_1_SHADOW_STRIKE') {
-          const sorted = [...ctx.validThrones].sort((a, b) => {
-            const shieldDiff = (G.thrones[a].shield ? 1 : 0) - (G.thrones[b].shield ? 1 : 0);
-            if (shieldDiff !== 0) return shieldDiff;
-            if (a === 3) return -1;
-            if (b === 3) return 1;
-            return CARD_SPECS[b].points - CARD_SPECS[a].points;
-          });
+          const scoreTarget = (c) => {
+            const sl = G.thrones[c];
+            const opp = G.players[sl.owner];
+            const isLeader = (opp.score === maxOppVP && opp.score >= 5);
+            const stealVal = (ctx.type === 'AWK_1_SHADOW_STRIKE' && opp.coins > 0) ? 2.5 : 0;
+            return CARD_SPECS[c].points * 1.4
+              + (c === 3 ? 3.5 : 0)
+              + (isLeader ? (opp.score >= 8 ? 6.5 : 3.0) : 0)
+              + stealVal
+              - calcDynamicShieldPenalty(sl, p.id, 3.2, 2.0);
+          };
+          const sorted = [...ctx.validThrones].sort((a, b) => scoreTarget(b) - scoreTarget(a));
           handleThroneClick(sorted[0]);
           return;
         }
