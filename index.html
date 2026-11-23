@@ -677,6 +677,7 @@
           subState: 'NEED_FATE_ROLL',
           fateDie: null,
           rawFateDice: [],
+          usedFortuneThisTurn: false,
           selectedWillDie: null,
           bankruptWillDie: null,
           activeAssignment: null,
@@ -950,6 +951,7 @@
         G.subState = 'NEED_FATE_ROLL';
         G.fateDie = null;
         G.rawFateDice = [];
+        G.usedFortuneThisTurn = false;
         G.selectedWillDie = null;
         G.bankruptWillDie = null;
         G.activeAssignment = null;
@@ -1061,6 +1063,7 @@
         if (G.phase !== 1 || G.subState !== 'FORTUNE_PICK_ONE') return;
         const p = G.players[G.currentPlayerIdx];
         G.fateDie = G.rawFateDice[keepIdx];
+        G.usedFortuneThisTurn = true;
         p.fortune = false;
         G.supply.fortune = Math.min(5, G.supply.fortune + 1);
         logEvent(`🎲 ${p.seatTag} 依【機運】選擇保留天命骰 D = [${G.fateDie}]，機運立即歸還公區。`);
@@ -1987,13 +1990,14 @@
         }
         const isLeaderBasic = slot && slot.owner !== null && slot.owner !== player.id && slot.level === 1 && G.players[slot.owner].score >= 8;
         if (isLeaderBasic && !slot.shield) return 12; // 聽牌斷分才勉強免費撞
-        return -5; // 其餘情況一律輸給 bankrupt_regroup (8.0)
+        return -5; // 其餘情況一律輸給 bankrupt_regroup (+2幣)
       }
 
-      // M5（調校版 C）：常規階段 2 主動休整評分（1 幣休整下修為 3.0，並取消 2 幣主動休整）
-      function evaluatePhase2RestScore(player) {
+      // M5（調校版 C + 機運補丁）：常規階段 2 主動休整評分（1 幣休整 3.0，觸發機運當回合不無故休整）
+      function evaluatePhase2RestScore(player, usedFortuneThisTurn = G.usedFortuneThisTurn) {
         if (player.coins >= lobbyConfig.maxCoins) return -999;
         if (player.warOrder) return -6.0; // 持有軍令時避免白白浪費
+        if (usedFortuneThisTurn) return -6.0; // 觸發機運當回合不無故休整（僅在無正收益推牌時退回休整）
         if (player.coins === 1) return 3.0; // 1 幣休整跳 3 幣（解鎖下回合 3 幣連擊），優於無效推牌
         return -6.0;
       }
@@ -2020,8 +2024,13 @@
             score += 8.0;
             if (player.score + 1 >= lobbyConfig.targetVP) score += 200;
           } else if (t === 4) {
-            const coinRefill = Math.min(2, Math.max(0, lobbyConfig.maxCoins - (player.coins - totalCoinCost)));
-            score += coinRefill * 2.0;
+            // 依推進後剩餘軍費 coinsAfter 遞減邊際效用（0~2 幣正常印鈔、3 幣微降、4 幣以上幾乎停刷）
+            const coinsAfter = Math.max(0, player.coins - totalCoinCost);
+            if (coinsAfter < lobbyConfig.maxCoins) {
+              const gain = Math.min(2, lobbyConfig.maxCoins - coinsAfter);
+              const mult = coinsAfter <= 2 ? 1.65 : (coinsAfter === 3 ? 1.05 : 0.20);
+              score += gain * mult;
+            }
           } else if (t === 5) {
             const hasEnemyAwk = [1, 2, 3, 4, 6].some(c => G.thrones[c].owner !== null && G.thrones[c].owner !== player.id && G.thrones[c].level === 2);
             if (hasEnemyAwk) score += 4.5;
@@ -2078,7 +2087,7 @@
                   if (act.canAfford) maxForD = Math.max(maxForD, evaluatePhase2ActionScore(p, act));
                 });
               }
-              maxForD = Math.max(maxForD, evaluatePhase2RestScore(p));
+              maxForD = Math.max(maxForD, evaluatePhase2RestScore(p, true));
             } else {
               // 破產狀態下估算各天命骰之期望得分／斷聽牌價值
               let expVal = 0;
@@ -2183,24 +2192,35 @@
               const shieldPen = calcDynamicShieldPenalty(sl, player.id, 1.3, 0.9);
               const ptsBonus = CARD_SPECS[c].points * 0.7;
               const opp = G.players[sl.owner];
-              const leaderBonus = (opp.score === maxOppVP && opp.score >= 6) ? 0.8 : 0;
-              bestWarpVal = Math.max(bestWarpVal, 2.8 + ptsBonus + leaderBonus - shieldPen);
+              const leaderBonus = (opp.score === maxOppVP && opp.score >= 6) ? 1.0 : 0;
+              bestWarpVal = Math.max(bestWarpVal, 3.2 + ptsBonus + leaderBonus - shieldPen);
             }
           }
-          if (lvl === 2 && player.coins < lobbyConfig.maxCoins) {
-            // #5 覺醒【時空裂隙】自帶 +1 幣，於 0 幣防破產狀態下對齊 M4 現金流估值 (2.3)
-            bestWarpVal += urgentNoBankrupt ? 2.3 : 1.5;
-          }
-          return bestWarpVal;
+          if (bestWarpVal <= -900) return -999;
+          const extraCoinVal = (lvl === 2 && player.coins < lobbyConfig.maxCoins)
+            ? (urgentNoBankrupt ? 2.3 : 1.45)
+            : 0;
+          return bestWarpVal + extraCoinVal;
         }
 
-        if (cNum === 4) {
+        if (cNum === 4 && lvl === 1) {
+          const coinsAfter = player.coins;
+          if (coinsAfter >= lobbyConfig.maxCoins) return 0;
+          const gain = Math.min(2, lobbyConfig.maxCoins - coinsAfter);
+          // 剩 0~2 幣：正常刷錢衝向 4 幣（可打連擊）
+          // 剩 3 幣：已夠下回合 3 幣連擊，微幅降權
+          // 剩 4~5 幣：即將溢幣，直接降為 0.20 逼 AI 改打 #1/#2/#3/#5/#6
+          const mult = coinsAfter <= 2 ? 1.65 : (coinsAfter === 3 ? 1.05 : 0.20);
+          return gain * mult;
+        }
+
+        if (cNum === 4 && lvl === 2) {
           const gainCoins = Math.min(2, Math.max(0, lobbyConfig.maxCoins - player.coins));
           const coinGainVal = gainCoins === 0
             ? 0
             : (urgentNoBankrupt ? (2.3 + (gainCoins - 1) * 1.5) : gainCoins * 1.5);
           const oppHasCoin = G.players.some(pl => pl.id !== player.id && pl.coins > 0);
-          return coinGainVal + (lvl === 2 && oppHasCoin ? 1.1 : 0);
+          return coinGainVal + (oppHasCoin ? 1.1 : 0);
         }
 
         if (cNum === 6 && lvl === 1) return 3.3;
@@ -2241,7 +2261,26 @@
         return cardVP * 0.8 + (totalAwkCount >= 2 ? 1.4 : 0.2);
       }
 
-      // M4（調校版 C）：階段 4 候選評分器（防破產底線 2.3：仍高於 0 幣撤回，但絕不蓋過 #2～#6 有效技能）
+      // 1) 階段 4 放棄領 +1 幣估值（0 幣防破產 2.3；未卡盤時 1 幣優先補到 2 幣 2.0；一般 1.5）
+      function getPhase4FallbackCoinVal(player, coinsAfter = player.coins) {
+        if (coinsAfter >= lobbyConfig.maxCoins) return 0;
+        if (coinsAfter === 0 && !player.warOrder) return 2.3; // 0 幣防破產底線
+        const ownAwkCount = getMyAwakenedCards(player.id).length;
+        if (coinsAfter === 1 && !player.warOrder && ownAwkCount <= 1) return 2.0; // 未卡盤時 1 幣優先補到 2 幣
+        return 1.5;
+      }
+
+      // 2) 階段 4 0 幣戰術撤回候選過濾（0 幣絕不放棄 +1 幣撤牌；對手 >= 7 分排除 #3 覺醒格）
+      function getSafeRetreatSlots(player, coinsAfter = player.coins, extraAwkSlot = null) {
+        if (coinsAfter === 0 && !player.warOrder) return []; // 0 幣絕不放棄 +1 幣去撤牌
+        const ownAwk = getMyAwakenedCards(player.id);
+        if (extraAwkSlot && !ownAwk.includes(extraAwkSlot)) ownAwk.push(extraAwkSlot);
+        const maxOppVP = Math.max(0, ...G.players.filter(x => x.id !== player.id).map(x => x.score));
+        // 對手 >= 7 分時，禁止主動撤回 #3 覺醒牌把自覺醒格讓成空位
+        return ownAwk.filter(slot => !(slot === 3 && maxOppVP >= 7));
+      }
+
+      // M4（調校版 C + 條件式 1 幣保底與末盤撤牌保護）：階段 4 候選評分器
       function resolvePhase4AI() {
         const p = G.players[G.currentPlayerIdx];
         const { cardNum, finalLevel } = G.commandContext;
@@ -2268,16 +2307,15 @@
           });
         }
 
-        // M4（調校版 C）：防破產底線下修為 2.3
-        const urgentNoBankrupt = (p.coins === 0 && !p.warOrder);
-        const fbCoinVal = p.coins >= lobbyConfig.maxCoins ? 0 : (urgentNoBankrupt ? 2.3 : 1.5);
+        const fbCoinVal = getPhase4FallbackCoinVal(p, p.coins);
         candidates.push({ type: 'FALLBACK_COIN', score: fbCoinVal });
 
-        // 0 幣戰術撤回己方覺醒牌：僅於非防破產緊急狀態時參與競爭（對手 >= 7 分時 #3 撤回評分歸零）
+        // 0 幣戰術撤回己方覺醒牌：透過 getSafeRetreatSlots 過濾 0 幣防破產與對手 >= 7 分禁撤 #3
         const myAwk = getMyAwakenedCards(p.id);
-        if (myAwk.length > 0 && !urgentNoBankrupt) {
+        const safeRetreatSlots = getSafeRetreatSlots(p, p.coins);
+        if (safeRetreatSlots.length > 0) {
           const maxOppVP = Math.max(0, ...G.players.filter(x => x.id !== p.id).map(x => x.score));
-          const scoredAwk = myAwk
+          const scoredAwk = safeRetreatSlots
             .map(c => ({ cardNum: c, score: evaluateRetreatCardScore(c, myAwk.length, maxOppVP) }))
             .sort((a, b) => b.score - a.score);
           const bestRetreat = scoredAwk[0];
