@@ -1,0 +1,2993 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>王座爭奪：覺醒之戰 — V10.3_SA 正反對稱・休整雙幣・戰術撤回防#5版</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans TC', 'Inter', sans-serif;
+      background-color: #090c15;
+      color: #e2e8f0;
+      overflow-x: hidden;
+    }
+    /* 覺醒登頂金色光暈特效 */
+    .awakened-glow {
+      background: linear-gradient(180deg, rgba(245, 158, 11, 0.24) 0%, rgba(120, 53, 15, 0.35) 100%) !important;
+      border: 2px solid #fbbf24 !important;
+      box-shadow: 0 0 24px rgba(245, 158, 11, 0.45), inset 0 0 14px rgba(251, 191, 36, 0.22);
+    }
+    .base-occupied-glow {
+      background: linear-gradient(180deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.96) 100%);
+      border-width: 1.5px;
+    }
+    .target-selectable {
+      animation: targetPulse 1.3s infinite ease-in-out;
+      cursor: pointer !important;
+    }
+    @keyframes targetPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); border-color: #38bdf8; }
+      50% { box-shadow: 0 0 0 7px rgba(56, 189, 248, 0); border-color: #fde047; }
+    }
+    .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+    .custom-scroll::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+    .custom-scroll::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.8); border-radius: 9999px; }
+    .dice-face {
+      background: linear-gradient(145deg, #1e293b, #0f172a);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- 頂部導覽列 -->
+  <header class="bg-[#0d111d] border-b border-slate-800/90 sticky top-0 z-40 px-4 py-2.5">
+    <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/20 text-white font-black text-lg">
+          👑
+        </div>
+        <div>
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <h1 class="text-base md:text-lg font-black tracking-tight text-white">王座爭奪：覺醒之戰</h1>
+            <span class="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/40">
+              V10.3_SA・#4回歸+2分/+1幣・休整+2幣・階段4撤回防#5
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 hidden sm:block">
+            全空盤起手 ‧ 起始 2/5 幣 ‧ 6 枚護盾 (+1幣撫卹) ‧ 休整 +2幣 ‧ #4 +1幣(+2分) / #5 奪1幣(+1分) ‧ #6 先鋒增援 ‧ 階段 4 支援 0 幣戰術撤回
+          </p>
+        </div>
+      </div>
+
+      <!-- 右側三大主視圖切換頁籤 -->
+      <div class="flex items-center gap-2">
+        <button id="tab-btn-lobby" onclick="App.switchMainTab('LOBBY')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 bg-slate-800/90 text-slate-200 border-slate-700 hover:bg-slate-700">
+          <span>⚙️</span> 對局設定 (Lobby)
+        </button>
+        <button id="tab-btn-arena" onclick="App.switchMainTab('ARENA')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20">
+          <span>⚔️</span> 戰場實測 (Arena)
+        </button>
+        <button id="tab-btn-telemetry" onclick="App.switchMainTab('TELEMETRY')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 bg-indigo-950/90 text-indigo-200 border-indigo-700/70 hover:bg-indigo-900">
+          <span>📊</span> 數據診斷與戰報匯出
+          <span id="telemetry-match-badge" class="px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-600 text-white font-black">1</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== 視圖 1：LOBBY 對局設定大廳 ==================== -->
+  <section id="view-lobby" class="hidden flex-1 max-w-[1440px] w-full mx-auto px-4 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- 左欄：1. V10.3_SA 核心對局參數 (5 cols) -->
+      <div class="lg:col-span-5 bg-[#111624] border border-slate-800/90 rounded-2xl p-5 shadow-xl space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-amber-400">🎛️</span>
+            <h2 class="text-base font-black text-white">1. V10.3_SA 核心對局參數</h2>
+          </div>
+          <span class="text-[11px] font-mono text-slate-500">match_config</span>
+        </div>
+
+        <!-- V10.3_SA 正反對稱規格亮點摘要卡 -->
+        <div class="p-3.5 rounded-xl border border-amber-500/40 bg-amber-500/10 space-y-1.5">
+          <div class="text-xs font-black text-amber-300 flex items-center gap-1.5">
+            <span>📜</span> V10.3_SA 引擎規格（V10.3_SA）
+          </div>
+          <ul class="text-[11px] text-slate-300 space-y-1 leading-relaxed">
+            <li>• <b class="text-sky-300">🏳️ 全空盤＋雙幣休整經濟</b>：起始 <b class="text-white">2 幣／上限 5 幣</b>、公區 <b class="text-white">6 枚護盾（單倍 +1 幣撫卹）</b>；階段 2 戰術休整改為領 <b class="text-white">+2 幣</b>（滿 5 幣有合法推牌時禁用，4 幣休整溢額自動記入守恆）。</li>
+            <li>• <b class="text-amber-300">⚗️ #4 回歸 +2 分／+1 幣</b>：<b class="text-white">#4 煉金術士／小氣商人（+2 分）</b>正反皆領 <b class="text-white">+1 幣</b>，全套僅剩 <b class="text-white">#5 大法師／篡位宰相（+1 分）</b>為 1 分強控搶幣卡（正反皆先搶 1 幣再退敵覺醒搶位）。</li>
+            <li>• <b class="text-purple-300">🎭 全 6 卡正反 100% 同效</b>：<b class="text-white">#1 暗夜刺客／孤狼刺客</b>純退敵基礎牌；<b class="text-white">#3 召喚術士／神聖祭司（+2 分）</b>充能其他我方基礎牌；<b class="text-white">#6 皇家傳令官／先鋒旗手</b>【先鋒增援】派 1～5 號牌進空位。</li>
+            <li>• <b class="text-emerald-300">🏳️ 階段 4 保留 0 幣戰術撤回</b>：放棄發技時可 <b class="text-white">0 幣撤回我方任 1 張覺醒牌</b>（勝分保留、帶盾歸還公區不領撫卹），專職反制 #5 偷幣！</li>
+          </ul>
+        </div>
+
+        <!-- 勝分門檻 target_vp -->
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs font-bold text-slate-300">勝分門檻 (VP Target)</span>
+            <span class="text-[11px] font-mono text-slate-500">target_vp</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2.5" id="lobby-vp-options">
+            <button onclick="App.setLobbyConfig('targetVP', 8)" data-vp="8" class="vp-opt-btn text-left p-3 rounded-xl border border-slate-800 bg-[#0b0e17] hover:border-slate-700 transition">
+              <div class="text-sm font-black text-white">8 分</div>
+              <div class="text-[11px] text-slate-400 mt-0.5">快速熱身局</div>
+            </button>
+            <button onclick="App.setLobbyConfig('targetVP', 10)" data-vp="10" class="vp-opt-btn text-left p-3 rounded-xl border-2 border-amber-500/80 bg-amber-500/10 transition">
+              <div class="text-sm font-black text-amber-400">10 分 <span class="text-[10px] font-bold">(預設)</span></div>
+              <div class="text-[11px] text-amber-200/80 mt-0.5">V10.3_SA 標準競賽</div>
+            </button>
+            <button onclick="App.setLobbyConfig('targetVP', 12)" data-vp="12" class="vp-opt-btn text-left p-3 rounded-xl border border-slate-800 bg-[#0b0e17] hover:border-slate-700 transition">
+              <div class="text-sm font-black text-white">12 分</div>
+              <div class="text-[11px] text-slate-400 mt-0.5">深度拉鋸局</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- 開局自由經濟參數 (起始幣與持有上限) -->
+        <div class="p-3.5 rounded-xl border border-slate-800 bg-[#0b0e17] space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-300">🪙 開局經濟自由調參 (起始幣 / 持有上限)</span>
+            <span class="text-[10px] font-mono text-amber-400">custom_economy</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-1">
+                <span class="text-slate-400">起始行動幣</span>
+                <b id="lobby-init-coins-val" class="text-amber-400">2 幣</b>
+              </div>
+              <input id="lobby-init-coins-slider" type="range" min="0" max="5" value="2" oninput="App.setEconomySlider('initialCoins', this.value)" class="w-full accent-amber-500 cursor-pointer" />
+              <div class="flex justify-between text-[10px] text-slate-500 mt-0.5"><span>0(零幣開局)</span><span>2(預設)</span><span>5</span></div>
+            </div>
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-1">
+                <span class="text-slate-400">持有上限</span>
+                <b id="lobby-max-coins-val" class="text-sky-400">5 幣</b>
+              </div>
+              <input id="lobby-max-coins-slider" type="range" min="3" max="10" value="5" oninput="App.setEconomySlider('maxCoins', this.value)" class="w-full accent-sky-500 cursor-pointer" />
+              <div class="flex justify-between text-[10px] text-slate-500 mt-0.5"><span>3</span><span>5(預設)</span><span>10</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 先後手順序（V10.3_SA 統一全空盤起手） -->
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs font-bold text-slate-300">開局順位決議與空盤設定 (Empty Board Start)</span>
+          </div>
+          <select id="lobby-seat-method" onchange="App.setLobbyConfig('seatMethod', this.value)" class="w-full bg-[#0b0e17] border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-200 focus:outline-none focus:border-amber-500">
+            <option value="EMPTY_BOARD">🏳️ 全空盤起手：最高點為 P1 + 順時針輪轉 (V10.3_SA 預設)</option>
+            <option value="DESC_EMPTY">📊 全空盤起手：依首擲點數由大到小排序 P1~P4</option>
+          </select>
+        </div>
+
+        <!-- 對局模式 mode -->
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs font-bold text-slate-300">對局模式 (Game Mode)</span>
+            <span class="text-[11px] font-mono text-slate-500">mode</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2.5">
+            <button id="mode-btn-standard" onclick="App.setLobbyConfig('sandboxMode', false)" class="text-left p-3 rounded-xl border-2 border-amber-500/80 bg-amber-500/10 transition">
+              <div class="text-xs font-black text-amber-400 flex items-center gap-1.5">🛡️ 標準對決 (STANDARD)</div>
+              <div class="text-[11px] text-slate-300 mt-1">嚴格遵循天命亂數與意志計費</div>
+            </button>
+            <button id="mode-btn-sandbox" onclick="App.setLobbyConfig('sandboxMode', true)" class="text-left p-3 rounded-xl border border-slate-800 bg-[#0b0e17] hover:border-slate-700 transition">
+              <div class="text-xs font-black text-purple-300 flex items-center gap-1.5">🧪 沙盒除錯 (SANDBOX)</div>
+              <div class="text-[11px] text-slate-400 mt-1">解鎖指定天命骰、0幣直推拆覺醒測試與刷護盾</div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右欄：2. 玩家槽位與 AI 難度設定 (7 cols) -->
+      <div class="lg:col-span-7 bg-[#111624] border border-slate-800/90 rounded-2xl p-5 shadow-xl flex flex-col justify-between space-y-5">
+        <div>
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-amber-400">👥</span>
+                <h2 class="text-base font-black text-white">2. 玩家槽位與 AI 難度設定</h2>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-0.5">支援 2~4 人局（Slot 1 &amp; 2 為必選槽位，關閉 Slot 3 &amp; 4 即為標準 2 人局）</p>
+            </div>
+
+            <!-- 快速預設 -->
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[11px] text-slate-400 mr-1">快速預設：</span>
+              <button onclick="App.applySlotPreset('1V1_HARD')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">1v1 高手 AI</button>
+              <button onclick="App.applySlotPreset('4P_MIX')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">4人混戰 (1人+3AI)</button>
+              <button onclick="App.applySlotPreset('4P_AI')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">4人全AI模擬</button>
+              <button onclick="App.applySlotPreset('2P_HOTSEAT')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">雙人熱座</button>
+            </div>
+          </div>
+
+          <!-- 玩家槽位列表 S1 ~ S4 -->
+          <div id="lobby-slots-container" class="space-y-3 mt-4"></div>
+        </div>
+
+        <!-- 底部啟動按鈕 -->
+        <div class="pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div class="text-xs text-slate-400">
+            點擊右側按鈕將依當前設定執行<b class="text-amber-300">「開局順位擲骰決議」</b>並以全空盤進入 V10.3_SA 戰場
+          </div>
+          <button onclick="App.launchSeatResolutionModal()" class="w-full sm:w-auto px-6 py-3 rounded-xl font-black text-sm bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 shadow-lg shadow-amber-500/25 transition">
+            🎲 啟動 V10.3_SA 對局並執行開局決議 →
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== 視圖 2：ARENA 中央王座戰場 ==================== -->
+  <main id="view-arena" class="flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-5 py-3 flex flex-col gap-3">
+
+    <!-- 1. 頂部戰局狀態橫幅 (Status Ribbon) -->
+    <div class="bg-[#111624] border border-slate-800/90 rounded-xl px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 shadow-md">
+      <div class="flex flex-wrap items-center gap-2.5 text-xs">
+        <span class="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-400 font-black tracking-wider">
+          ROUND <span id="ribbon-round" class="text-sm">1</span>
+        </span>
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-400 font-medium">當前行動：</span>
+          <span id="ribbon-active-player" class="px-2.5 py-0.5 rounded-md font-black bg-rose-600 text-white">P1 Waylon</span>
+        </div>
+        <span id="ribbon-phase-badge" class="px-2.5 py-0.5 rounded-md font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+          階段 1：擲天命骰
+        </span>
+        <span class="text-slate-600 hidden md:inline">|</span>
+        <span class="text-slate-300">目標：<b id="ribbon-target-vp" class="text-white">10</b>分</span>
+        <span class="text-slate-600 hidden md:inline">|</span>
+        <span class="text-slate-300">🎲順應天命：<b id="ribbon-direct-count" class="text-emerald-300 font-mono">0</b>次</span>
+        <span class="text-slate-600 hidden md:inline">|</span>
+        <span class="text-slate-300">🌀#5搶幣：<b id="ribbon-c5steal-count" class="text-purple-300 font-mono">0</b>幣</span>
+        <span class="text-slate-600 hidden md:inline">|</span>
+        <span class="text-slate-300">📊撥盤/回合：<b id="ribbon-dial-rate" class="text-sky-300 font-mono">0.00</b></span>
+      </div>
+
+      <!-- 右側公區儲備與快速控制（唯一標記物：🛡️護盾上限 6 枚） -->
+      <div class="flex flex-wrap items-center gap-2 text-[11px]">
+        <div class="flex items-center gap-2.5 bg-[#0b0e17] px-2.5 py-1 rounded-lg border border-slate-800">
+          <span class="text-slate-400">公區：</span>
+          <span class="text-sky-300 font-bold" title="全場唯一標記物（6枚與王座硬上限一致）：帶盾卡牌被敵方擊退或敵方技能退回陣地時，防守方領取 +1 幣護盾撫卹金">🛡️護盾 <b id="supply-shield">6</b>/6</span>
+        </div>
+        <button id="btn-auto-ai" onclick="App.toggleAutoPlay()" class="px-2.5 py-1 rounded-lg font-bold bg-emerald-950/90 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/70 transition">
+          ⚡ 全AI高速對戰: 關
+        </button>
+        <button onclick="App.toggleSandboxBar()" class="px-2.5 py-1 rounded-lg font-bold bg-purple-950/80 hover:bg-purple-900 text-purple-200 border border-purple-700/70 transition">
+          🛠️ 沙盒工具
+        </button>
+      </div>
+    </div>
+
+    <!-- 沙盒除錯工具列 (SANDBOX_DEV) -->
+    <div id="sandbox-bar" class="hidden bg-purple-950/30 border border-purple-500/40 rounded-xl p-2.5 text-xs">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 rounded bg-purple-600 text-white font-black">SANDBOX_DEV</span>
+          <span class="text-purple-200">V10.3_SA 邊界測試（天命骰 / 0幣直推 / 4幣休整溢額 / #5奪幣 / 階段4撤回防#5）</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5">
+          <label class="text-purple-200">天命骰 D:</label>
+          <select id="sb-fate" class="bg-slate-900 border border-purple-500/50 rounded px-1.5 py-0.5 text-white">
+            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+            <option value="4">4</option><option value="5">5</option><option value="6" selected>6</option>
+          </select>
+          <button onclick="App.sandboxSetFateDie()" class="px-2 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white font-bold">套用天命骰</button>
+          <button onclick="App.sandboxModCoin(1)" class="px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold">當前+1幣</button>
+          <button onclick="App.sandboxModCoin(-1)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold">當前-1幣</button>
+          <button onclick="App.sandboxSetZeroCoin()" class="px-2 py-1 rounded bg-rose-800 hover:bg-rose-700 text-white font-bold">歸0測直推</button>
+          <button onclick="App.sandboxAllShields()" class="px-2 py-1 rounded bg-sky-700 hover:bg-sky-600 text-white font-bold">全掛🛡️盾</button>
+          <button onclick="App.sandboxInstantWin()" class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold">🏆 立即終局</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 參戰玩家橫向狀態卡片列 -->
+    <div id="arena-players-row" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5"></div>
+
+    <!-- 3. 中央王座爭奪區 (The Throne Zone 1~6) -->
+    <div class="bg-[#111624] border border-slate-800/90 rounded-2xl p-3.5 shadow-xl">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+          <h2 class="text-sm sm:text-base font-black text-white tracking-wide">
+            中央王座爭奪區 (The Throne Zone 1~6)
+          </h2>
+          <span class="text-[11px] text-slate-400 hidden md:inline">
+            — 【第一層(下)：基礎牌】往上推進登頂 ➔ 【第二層(上)：覺醒牌與積分】（全 6 卡正反同效 ‧ 帶🛡️護盾遭敵擊退/技能退回時，防守方領 +1 幣撫卹）
+          </span>
+        </div>
+        <div id="throne-zone-hint" class="text-[11px] font-bold text-amber-300"></div>
+      </div>
+
+      <!-- 6 欄王座軌道 -->
+      <div id="throne-tracks-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2.5"></div>
+    </div>
+
+    <!-- 4. 底部雙欄互動區：左 8 欄 (操作橫幅 + 個人陣地手牌區 1~6) + 右 4 欄 (戰局推演與埋點日誌) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch flex-1">
+
+      <!-- 左欄 (8 cols)：階段互動操作橫幅 + 個人陣地手牌區 -->
+      <div class="lg:col-span-8 flex flex-col gap-3 justify-between">
+        <!-- 階段互動操作艙 (Action Console) -->
+        <div id="arena-action-box" class="bg-[#111624] border border-slate-800/90 rounded-2xl p-4 shadow-xl min-h-[148px] flex flex-col justify-center"></div>
+
+        <!-- 個人陣地 (手牌區 1~6) -->
+        <div class="bg-[#111624] border border-slate-800/90 rounded-2xl p-3.5 shadow-xl">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2">
+              <span class="text-amber-400">🃏</span>
+              <h3 id="hand-zone-title" class="text-xs sm:text-sm font-black text-white">
+                P1 [Waylon] 的個人陣地 (手牌區 1~6)
+              </h3>
+            </div>
+            <span class="text-[11px] text-sky-400">
+              V10.3_SA：全 6 卡正反同效 ‧ #4 (+1幣/+2分) ‧ #5 (奪1幣/+1分) ‧ #6 先鋒增援 ‧ 休整+2幣(滿5幣禁休整) ‧ 階段 4 可 0 幣撤回覺醒牌
+            </span>
+          </div>
+
+          <div id="hand-cards-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2"></div>
+        </div>
+      </div>
+
+      <!-- 右欄 (4 cols)：>_ 戰局推演與埋點日誌 -->
+      <div class="lg:col-span-4 bg-[#111624] border border-slate-800/90 rounded-2xl p-3.5 shadow-xl flex flex-col h-[410px] lg:h-auto">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-2.5">
+          <div class="flex items-center gap-2">
+            <span class="text-emerald-400 font-mono font-black text-xs">&gt;_</span>
+            <h3 class="text-xs sm:text-sm font-black text-white">戰局推演與埋點日誌 (V10.3_SA Battle Log)</h3>
+          </div>
+          <button onclick="App.clearLogs()" class="text-[11px] text-slate-400 hover:text-white transition">清空</button>
+        </div>
+        <div id="battle-log-list" class="flex-1 overflow-y-auto custom-scroll space-y-2 pr-1 max-h-[370px]"></div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ==================== 視圖 3：TELEMETRY 數據診斷與戰報匯出 ==================== -->
+  <section id="view-telemetry" class="hidden flex-1 max-w-[1440px] w-full mx-auto px-4 py-6 space-y-5">
+    <div class="bg-[#111624] border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+        <div>
+          <h2 class="text-lg font-black text-white flex items-center gap-2">
+            📊 V10.3_SA 遙測數據診斷與 NotebookLM 結構化戰報中心
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">
+            In-Memory 即時聚合（無外部 DB 依賴）‧ 起始 2/5 幣、護盾 6 枚 (+1 幣)、休整 +2 幣、#4 +1幣(+2分)、#5 奪1幣(+1分)、階段4撤回與 100% 金幣守恆驗算 ‧ 一鍵下載 `.md` / `.txt`
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="App.downloadReport('md')" class="px-4 py-2 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition">
+            ⬇️ 下載 .md 戰報 (NotebookLM 最佳化)
+          </button>
+          <button onclick="App.downloadReport('txt')" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+            ⬇️ 下載 .txt 純文字戰報
+          </button>
+          <button onclick="App.copyReportToClipboard()" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition">
+            📋 複製完整戰報
+          </button>
+        </div>
+      </div>
+
+      <!-- 四大 KPI 即時診斷卡片 -->
+      <div id="kpi-summary-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-4"></div>
+
+      <!-- 預覽區塊 -->
+      <div class="bg-[#090c15] border border-slate-800 rounded-xl p-4">
+        <div class="text-xs font-bold text-slate-400 mb-2">即時 Markdown 戰報預覽：</div>
+        <pre id="telemetry-preview" class="text-[11px] font-mono text-slate-300 whitespace-pre-wrap overflow-x-auto max-h-[520px] custom-scroll leading-relaxed"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 過場彈窗：開局順位擲骰決議與 V10.3_SA 配置確認 ==================== -->
+  <div id="seat-resolution-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#111624] border border-slate-700/90 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5">
+      <div class="border-b border-slate-800 pb-3">
+        <div class="text-[11px] font-black tracking-widest text-amber-400 uppercase">V10.3_SA SEAT ORDER &amp; EMPTY BOARD RESOLUTION</div>
+        <h3 class="text-lg sm:text-xl font-black text-white mt-1 flex items-center gap-2">
+          🎲 開局順位擲骰決議與 V10.3_SA 對局配置確認
+        </h3>
+      </div>
+
+      <p id="seat-modal-desc" class="text-xs text-slate-300 leading-relaxed"></p>
+
+      <!-- 排序結果列表 -->
+      <div id="seat-resolution-list" class="space-y-2.5"></div>
+
+      <!-- 開局配置橫幅 -->
+      <div class="bg-[#0b0e17] border border-slate-800 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div id="seat-modal-econ-text" class="text-amber-400 font-bold"></div>
+        <span class="text-emerald-400 font-black">決議與配置完成！</span>
+      </div>
+
+      <button onclick="App.confirmEnterArena()" class="w-full py-3.5 rounded-xl font-black text-sm bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 shadow-lg shadow-amber-500/25 transition">
+        進入中央王座戰場 →
+      </button>
+    </div>
+  </div>
+
+  <!-- 提示 Toast -->
+  <div id="toast-msg" class="fixed bottom-5 right-5 z-50 hidden bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-xl text-xs font-bold"></div>
+
+  <script>
+    /**
+     * ============================================================================
+     * 《王座爭奪：覺醒之戰》 V10.3_SA 正反對稱・休整雙幣・戰術撤回防#5版
+     * 核心定案規格（V10.3_SA）：
+     * 1. [經濟與卡分調整]：起始 2 幣／上限 5 幣；公區護盾 6 枚（單倍 +1 幣撫卹）；
+     *    #4 回復 +2 分（CARD_VP: {1:2, 2:2, 3:2, 4:2, 5:1, 6:2}，全套僅剩 #5 為 +1 分）。
+     * 2. [#4 退回 +1 幣與休整雙幣]：CARD4_GAIN = 1；REST_GAIN = 2（滿 5 幣有合法推牌時禁用，
+     *    4 幣休整時實得 +1 幣並記入 overflowLost += 1 維持 100% 金幣守恆）。
+     * 3. [階段 2 全體通用五選一]：0 幣【順應天命】直推 #D（撞敵覺醒一律 0 幣免費擊退）、
+     *    1 幣小骰 / 2 幣大骰（套用 target !== D 防呆）、3 幣【同點直覺】（限空位或敵方）、
+     *    0 幣【戰術休整 +2 幣】（滿 5 幣且有合法推牌時禁用）。
+     * 4. [階段 4 零保底與 0 幣戰術撤回]：放棄發技時可 0 幣撤回己方任 1 張已覺醒牌重置為基礎面
+     *    （保留勝分、帶盾歸還公區不領撫卹），反制 #5 偷幣；或直接結束回合。
+     * 5. [全 6 卡 100% 正反同效]：#1 純退敵基礎牌；#2 掛護盾；#3 充能其他我方基礎牌（不含自身）；
+     *    #4 領 +1 幣；#5 先奪 1 幣再退敵覺醒搶位；#6【先鋒增援】派 1～5 號手牌進空位。
+     * ============================================================================
+     */
+    const App = (() => {
+      const RULES_VERSION = 'V10.3_SA';
+      const INITIAL_COINS = 2;
+      const MAX_COINS = 5;
+      const MAX_SHIELD = 6;
+      const SHIELD_PAYOUT = 1;
+      const CARD4_GAIN = 1;         // #4 正反皆領 +1 幣（覺醒 +2 分）
+      const AWK_KNOCKBACK_COST = 0; // 階段 3 擊退敵方覺醒牌 0 幣
+      const REST_GAIN = 2;          // 階段 2 戰術休整改為領 +2 幣
+
+      // V10.3_SA 1~6 號卡牌完整規格（全 6 卡正反 100% 同效；全套只剩 #5 一張 +1 分）
+      const CARD_SPECS = {
+        1: {
+          num: 1, baseName: '暗夜刺客', awkName: '孤狼刺客', points: 2,
+          baseTitle: '刺客伏擊', baseDesc: '將王座區 1 張敵方【基礎牌】退回其個人陣地（若帶🛡️護盾則防守方領 +1 幣撫卹金；正反同效）',
+          awkTitle: '刺客伏擊', awkDesc: '將王座區 1 張敵方【基礎牌】退回其個人陣地（若帶🛡️護盾則防守方領 +1 幣撫卹金；正反同效）'
+        },
+        2: {
+          num: 2, baseName: '忠誠護衛', awkName: '聖殿騎士', points: 2,
+          baseTitle: '堅定護航', baseDesc: '為我方王座區任 1 張未掛盾卡牌（含 #2 自身、基礎或覺醒皆可）掛載 1 枚【🛡️護盾】（正反同效）',
+          awkTitle: '堅定護航', awkDesc: '為我方王座區任 1 張未掛盾卡牌（含 #2 自身、基礎或覺醒皆可）掛載 1 枚【🛡️護盾】（正反同效）'
+        },
+        3: {
+          num: 3, baseName: '召喚術士', awkName: '神聖祭司', points: 2,
+          baseTitle: '奧術召喚', baseDesc: '使我方王座區 1 張其他我方【基礎牌】（不含自身）立即充能翻面覺醒並獲得勝分（不觸發第二次階段 4；正反同效）',
+          awkTitle: '神聖召喚', awkDesc: '使我方王座區 1 張其他我方【基礎牌】（不含自身）立即充能翻面覺醒並獲得勝分（不觸發第二次階段 4；正反同效）'
+        },
+        4: {
+          num: 4, baseName: '煉金術士', awkName: '小氣商人', points: 2,
+          baseTitle: '點石成金', baseDesc: '立即自公區領取 1 枚行動幣（受個人持有上限約束，溢額歸公區；覺醒 +2 分；正反同效）',
+          awkTitle: '點石成金', awkDesc: '立即自公區領取 1 枚行動幣（受個人持有上限約束，溢額歸公區；覺醒 +2 分；正反同效）'
+        },
+        5: {
+          num: 5, baseName: '法師', awkName: '篡位宰相', points: 1,
+          baseTitle: '時空扭曲', baseDesc: '先強奪敵方覺醒牌持有者 1 幣，再退回該敵方【覺醒牌】（帶盾觸發 +1 幣撫卹），並由我方同號基礎牌搶佔（正反同效）',
+          awkTitle: '時空扭曲', awkDesc: '先強奪敵方覺醒牌持有者 1 幣，再退回該敵方【覺醒牌】（帶盾觸發 +1 幣撫卹），並由我方同號基礎牌搶佔（正反同效）'
+        },
+        6: {
+          num: 6, baseName: '皇家傳令官', awkName: '先鋒旗手', points: 2,
+          baseTitle: '先鋒增援', baseDesc: '選擇王座區 1～5 號中任 1 個【未佔位空格】，將我方對應手牌以基礎面直接進駐（純站位不發技；正反同效）',
+          awkTitle: '先鋒增援', awkDesc: '選擇王座區 1～5 號中任 1 個【未佔位空格】，將我方對應手牌以基礎面直接進駐（純站位不發技；正反同效）'
+        }
+      };
+
+      const SLOT_THEMES = [
+        { badgeBg: 'bg-rose-600', text: 'text-rose-400', border: 'border-rose-500/70', softBg: 'bg-rose-950/30' },
+        { badgeBg: 'bg-blue-600', text: 'text-blue-400', border: 'border-blue-500/70', softBg: 'bg-blue-950/30' },
+        { badgeBg: 'bg-emerald-600', text: 'text-emerald-400', border: 'border-emerald-500/70', softBg: 'bg-emerald-950/30' },
+        { badgeBg: 'bg-purple-600', text: 'text-purple-400', border: 'border-purple-500/70', softBg: 'bg-purple-950/30' }
+      ];
+
+      // Lobby 可調參數狀態
+      let lobbyConfig = {
+        targetVP: 10,
+        initialCoins: INITIAL_COINS,
+        maxCoins: MAX_COINS,
+        seatMethod: 'EMPTY_BOARD',
+        sandboxMode: false,
+        slots: [
+          { slotId: 1, enabled: true, required: true, name: 'Waylon', type: 'HUMAN', difficulty: 'EXPERT' },
+          { slotId: 2, enabled: true, required: true, name: '蒼藍統帥', type: 'AI', difficulty: 'EXPERT' },
+          { slotId: 3, enabled: false, required: false, name: '翠綠遊俠', type: 'AI', difficulty: 'EXPERT' },
+          { slotId: 4, enabled: false, required: false, name: '紫晶霸主', type: 'AI', difficulty: 'CASUAL' }
+        ]
+      };
+
+      // AI 計時器防護鎖
+      let turnSeq = 0;
+      let aiTimers = [];
+      let autoPlayMode = false;
+      let matchCounter = 1;
+
+      function clearAITimers() {
+        while (aiTimers.length > 0) {
+          clearTimeout(aiTimers.pop());
+        }
+      }
+
+      function scheduleAI(fn, delay = 440) {
+        const expectedSeq = turnSeq;
+        const tid = setTimeout(() => {
+          if (G.gameOver || turnSeq !== expectedSeq) return;
+          const cp = G.players[G.currentPlayerIdx];
+          if (!cp || (!autoPlayMode && cp.type !== 'AI')) return;
+          fn();
+        }, autoPlayMode ? 85 : delay);
+        aiTimers.push(tid);
+      }
+
+      let G = {};
+      let T = {};
+
+      function createFreshTelemetry(activePlayers) {
+        const cardStats = {};
+        for (let c = 1; c <= 6; c++) {
+          cardStats[c] = {
+            pushed: 0,
+            cavalryPulledCount: 0,
+            warpSeizedCount: 0,
+            baseTriggered: 0,
+            awkTriggered: 0,
+            awakened: 0,
+            pointsScored: 0,
+            assistedAwakenings: 0,
+            assistedPoints: 0,
+            tacticalRetreats: 0
+          };
+        }
+        return {
+          rulesVersion: RULES_VERSION,
+          initialCoins: lobbyConfig.initialCoins,
+          maxCoins: lobbyConfig.maxCoins,
+          seatMethod: lobbyConfig.seatMethod,
+          playerCount: activePlayers.length,
+          targetVP: lobbyConfig.targetVP,
+          startTime: new Date().toISOString(),
+          durationSec: 0,
+          totalRounds: 1,
+          totalTurns: 0,
+          zeroCoinTurns: 0,
+          dialTouches: 0,
+          winnerId: null,
+          warpSeizeCount: 0,
+          card5StealWhiff: 0,
+          cavalryAdvanceCount: 0,
+          phase2Choices: {
+            freeDirectPush_0coin: 0,
+            willSmall_1coin: 0,
+            willBig_2coin: 0,
+            willDirectAwaken_3coin: 0,
+            rest_2coin: 0
+          },
+          clashChoices: {
+            freeBaseKnockback: 0,
+            freeAwkKnockback: 0
+          },
+          phase4CommandChoices: {
+            freeSelfBase: 0,
+            freeSelfAwk: 0,
+            freeAllyBase: 0,
+            freeAllyAwk: 0,
+            fallbackRetreat0Coin: 0,
+            passTurn: 0
+          },
+          coinSources: {
+            initial: activePlayers.reduce((s, p) => s + p.coins, 0),
+            rest: 0,
+            shieldInsurance: 0,
+            card4Base: 0,
+            card4AwkSupply: 0,
+            card5Steal: 0
+          },
+          coinSinks: {
+            willDieCost: 0,
+            overflowLost: 0
+          },
+          tokenStats: {
+            shieldApplied: 0,
+            shieldRetainedOnAwk: 0,
+            shieldInsuranceByClash: 0,
+            shieldInsuranceBySkill: 0
+          },
+          cards: cardStats,
+          logs: []
+        };
+      }
+
+      // 準備新對局（V10.3_SA 全空盤起手）
+      function prepareNewMatch() {
+        clearAITimers();
+        turnSeq++;
+
+        const enabledSlots = lobbyConfig.slots.filter(s => s.enabled);
+        const pool = [1, 2, 3, 4, 5, 6];
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        const rawRolls = pool.slice(0, enabledSlots.length);
+
+        let orderedEntries = enabledSlots.map((slot, i) => ({
+          slot,
+          roll: rawRolls[i]
+        }));
+
+        if (lobbyConfig.seatMethod === 'DESC_EMPTY') {
+          orderedEntries.sort((a, b) => b.roll - a.roll);
+        } else {
+          let maxIdx = 0;
+          for (let i = 1; i < orderedEntries.length; i++) {
+            if (orderedEntries[i].roll > orderedEntries[maxIdx].roll) maxIdx = i;
+          }
+          orderedEntries = [
+            ...orderedEntries.slice(maxIdx),
+            ...orderedEntries.slice(0, maxIdx)
+          ];
+        }
+
+        const players = orderedEntries.map((entry, idx) => {
+          const { slot, roll } = entry;
+          const theme = SLOT_THEMES[idx];
+          return {
+            id: idx,
+            seatTag: `P${idx + 1}`,
+            slotId: slot.slotId,
+            name: slot.name || `玩家 ${idx + 1}`,
+            type: slot.type,
+            difficulty: slot.difficulty || 'EXPERT',
+            theme,
+            score: 0,
+            coins: lobbyConfig.initialCoins,
+            initCoins: lobbyConfig.initialCoins,
+            seedCard: roll
+          };
+        });
+
+        const thrones = {};
+        for (let c = 1; c <= 6; c++) {
+          thrones[c] = { owner: null, level: 0, shield: false };
+        }
+
+        G = {
+          startTimeMs: Date.now(),
+          round: 1,
+          currentPlayerIdx: 0,
+          phase: 1,
+          subState: 'NEED_FATE_ROLL',
+          fateDie: null,
+          selectedWillDie: null,
+          activeAssignment: null,
+          commandContext: null,
+          skillContext: null,
+          supply: { shield: MAX_SHIELD },
+          players,
+          thrones,
+          gameOver: false,
+          winner: null
+        };
+
+        T = createFreshTelemetry(players);
+
+        const rollSummary = players.map(p => `${p.seatTag}[${p.name}]首擲${p.seedCard}`).join('；');
+        clearLogs();
+        logEvent(`🏳️【V10.3_SA 全空盤起手】${rollSummary}（起始 ${lobbyConfig.initialCoins} 幣 / 上限 ${lobbyConfig.maxCoins} 幣 / 護盾 ${MAX_SHIELD} 枚 (+${SHIELD_PAYOUT} 幣) / 休整 +${REST_GAIN} 幣 / #4 +${CARD4_GAIN}幣(+2分) / #5 奪1幣(+1分) / 階段4撤回；目標${lobbyConfig.targetVP}分）。`);
+
+        const sbBar = document.getElementById('sandbox-bar');
+        if (sbBar) {
+          if (lobbyConfig.sandboxMode) sbBar.classList.remove('hidden');
+          else sbBar.classList.add('hidden');
+        }
+      }
+
+      // 切換主視圖 Tab
+      function switchMainTab(tab) {
+        const views = {
+          LOBBY: document.getElementById('view-lobby'),
+          ARENA: document.getElementById('view-arena'),
+          TELEMETRY: document.getElementById('view-telemetry')
+        };
+        const btns = {
+          LOBBY: document.getElementById('tab-btn-lobby'),
+          ARENA: document.getElementById('tab-btn-arena'),
+          TELEMETRY: document.getElementById('tab-btn-telemetry')
+        };
+
+        Object.keys(views).forEach(k => {
+          if (!views[k] || !btns[k]) return;
+          if (k === tab) {
+            views[k].classList.remove('hidden');
+            btns[k].className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20';
+          } else {
+            views[k].classList.add('hidden');
+            btns[k].className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 bg-slate-800/90 text-slate-200 border-slate-700 hover:bg-slate-700';
+          }
+        });
+
+        if (tab === 'LOBBY') renderLobby();
+        if (tab === 'ARENA') renderAll();
+        if (tab === 'TELEMETRY') updateTelemetryModal();
+      }
+
+      // 渲染 Lobby 設定介面
+      function renderLobby() {
+        document.querySelectorAll('.vp-opt-btn').forEach(btn => {
+          const vp = parseInt(btn.getAttribute('data-vp'), 10);
+          btn.className = vp === lobbyConfig.targetVP
+            ? 'vp-opt-btn text-left p-3 rounded-xl border-2 border-amber-500/80 bg-amber-500/10 transition'
+            : 'vp-opt-btn text-left p-3 rounded-xl border border-slate-800 bg-[#0b0e17] hover:border-slate-700 transition';
+        });
+
+        document.getElementById('lobby-init-coins-val').textContent = `${lobbyConfig.initialCoins} 幣`;
+        document.getElementById('lobby-max-coins-val').textContent = `${lobbyConfig.maxCoins} 幣`;
+        document.getElementById('lobby-init-coins-slider').value = lobbyConfig.initialCoins;
+        document.getElementById('lobby-max-coins-slider').value = lobbyConfig.maxCoins;
+        document.getElementById('lobby-seat-method').value = lobbyConfig.seatMethod;
+
+        const btnStd = document.getElementById('mode-btn-standard');
+        const btnSb = document.getElementById('mode-btn-sandbox');
+        if (!lobbyConfig.sandboxMode) {
+          btnStd.className = 'text-left p-3 rounded-xl border-2 border-amber-500/80 bg-amber-500/10 transition';
+          btnSb.className = 'text-left p-3 rounded-xl border border-slate-800 bg-[#0b0e17] hover:border-slate-700 transition';
+        } else {
+          btnStd.className = 'text-left p-3 rounded-xl border border-slate-800 bg-[#0b0e17] hover:border-slate-700 transition';
+          btnSb.className = 'text-left p-3 rounded-xl border-2 border-purple-500/80 bg-purple-500/10 transition';
+        }
+
+        const container = document.getElementById('lobby-slots-container');
+        const badgeColors = ['bg-rose-600', 'bg-blue-600', 'bg-emerald-600', 'bg-purple-600'];
+        container.innerHTML = lobbyConfig.slots.map((s, idx) => {
+          if (!s.enabled) {
+            return `
+              <div class="p-3.5 rounded-xl border border-slate-800/80 bg-[#0b0e17]/60 flex items-center justify-between opacity-75">
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-lg ${badgeColors[idx]} bg-opacity-40 flex items-center justify-center font-black text-xs text-white">S${s.slotId}</div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-[11px] font-bold text-slate-400">SLOT ${s.slotId}</span>
+                      <button onclick="App.toggleSlot(${idx}, true)" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-emerald-400 border border-slate-700 transition">+ 啟用槽位</button>
+                    </div>
+                    <input type="text" value="${s.name}" disabled class="mt-1 bg-[#111624] border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-500 w-44" />
+                  </div>
+                </div>
+                <span class="text-xs italic text-slate-500">此槽位已關閉</span>
+              </div>
+            `;
+          }
+          return `
+            <div class="p-3.5 rounded-xl border border-slate-800 bg-[#0b0e17] flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg ${badgeColors[idx]} flex items-center justify-center font-black text-xs text-white shadow">S${s.slotId}</div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[11px] font-bold text-slate-400">SLOT ${s.slotId}</span>
+                    ${s.required
+                      ? `<span class="px-1.5 py-0.2 rounded bg-slate-800 text-[10px] text-slate-400">必選</span>`
+                      : `<button onclick="App.toggleSlot(${idx}, false)" class="px-2 py-0.5 rounded bg-rose-950/70 hover:bg-rose-900 text-[10px] font-bold text-rose-300 border border-rose-800/60 transition">✕ 關閉槽位</button>`
+                    }
+                  </div>
+                  <input type="text" value="${s.name}" onchange="App.updateSlotField(${idx}, 'name', this.value)" class="mt-1 bg-[#111624] border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold text-white w-48 focus:outline-none focus:border-amber-500" />
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2.5">
+                <div>
+                  <div class="text-[10px] text-slate-400 mb-1">控制器類型 (Type)</div>
+                  <select onchange="App.updateSlotField(${idx}, 'type', this.value)" class="bg-[#111624] border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-200">
+                    <option value="HUMAN" ${s.type === 'HUMAN' ? 'selected' : ''}>👤 真人玩家 (HUMAN)</option>
+                    <option value="AI" ${s.type === 'AI' ? 'selected' : ''}>🤖 電腦決策 (AI)</option>
+                  </select>
+                </div>
+                ${s.type === 'AI' ? `
+                <div>
+                  <div class="text-[10px] text-slate-400 mb-1">AI 難度 (Difficulty)</div>
+                  <select onchange="App.updateSlotField(${idx}, 'difficulty', this.value)" class="bg-[#111624] border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-200">
+                    <option value="EXPERT" ${s.difficulty !== 'CASUAL' ? 'selected' : ''}>🔴 高手 AI (預設推薦)</option>
+                    <option value="CASUAL" ${s.difficulty === 'CASUAL' ? 'selected' : ''}>🟢 休閒 AI (新手友善)</option>
+                  </select>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function setLobbyConfig(key, val) {
+        lobbyConfig[key] = val;
+        renderLobby();
+      }
+
+      function setEconomySlider(key, rawVal) {
+        const val = parseInt(rawVal, 10);
+        lobbyConfig[key] = val;
+        if (lobbyConfig.maxCoins < lobbyConfig.initialCoins) {
+          lobbyConfig.maxCoins = Math.max(3, lobbyConfig.initialCoins);
+        }
+        renderLobby();
+      }
+
+      function toggleSlot(idx, enabled) {
+        lobbyConfig.slots[idx].enabled = enabled;
+        renderLobby();
+      }
+
+      function updateSlotField(idx, field, val) {
+        lobbyConfig.slots[idx][field] = val;
+        renderLobby();
+      }
+
+      function applySlotPreset(preset) {
+        if (preset === '1V1_HARD') {
+          lobbyConfig.slots[0] = { slotId: 1, enabled: true, required: true, name: 'Waylon', type: 'HUMAN', difficulty: 'EXPERT' };
+          lobbyConfig.slots[1] = { slotId: 2, enabled: true, required: true, name: '蒼藍統帥', type: 'AI', difficulty: 'EXPERT' };
+          lobbyConfig.slots[2].enabled = false;
+          lobbyConfig.slots[3].enabled = false;
+        } else if (preset === '4P_MIX') {
+          lobbyConfig.slots[0] = { slotId: 1, enabled: true, required: true, name: 'Waylon', type: 'HUMAN', difficulty: 'EXPERT' };
+          lobbyConfig.slots[1] = { slotId: 2, enabled: true, required: true, name: '蒼藍統帥', type: 'AI', difficulty: 'EXPERT' };
+          lobbyConfig.slots[2] = { slotId: 3, enabled: true, required: false, name: '翠綠遊俠', type: 'AI', difficulty: 'EXPERT' };
+          lobbyConfig.slots[3] = { slotId: 4, enabled: true, required: false, name: '紫晶霸主', type: 'AI', difficulty: 'CASUAL' };
+        } else if (preset === '4P_AI') {
+          lobbyConfig.slots[0] = { slotId: 1, enabled: true, required: true, name: '赤紅戰神', type: 'AI', difficulty: 'EXPERT' };
+          lobbyConfig.slots[1] = { slotId: 2, enabled: true, required: true, name: '蒼藍統帥', type: 'AI', difficulty: 'EXPERT' };
+          lobbyConfig.slots[2] = { slotId: 3, enabled: true, required: false, name: '翠綠遊俠', type: 'AI', difficulty: 'EXPERT' };
+          lobbyConfig.slots[3] = { slotId: 4, enabled: true, required: false, name: '紫晶霸主', type: 'AI', difficulty: 'EXPERT' };
+        } else if (preset === '2P_HOTSEAT') {
+          lobbyConfig.slots[0] = { slotId: 1, enabled: true, required: true, name: 'Waylon', type: 'HUMAN', difficulty: 'EXPERT' };
+          lobbyConfig.slots[1] = { slotId: 2, enabled: true, required: true, name: 'Player 2', type: 'HUMAN', difficulty: 'EXPERT' };
+          lobbyConfig.slots[2].enabled = false;
+          lobbyConfig.slots[3].enabled = false;
+        }
+        renderLobby();
+      }
+
+      // 開啟開局順位決議彈窗（V10.3_SA 全空盤起手）
+      function launchSeatResolutionModal() {
+        prepareNewMatch();
+        document.getElementById('seat-modal-desc').innerHTML =
+          `依 <b class="text-amber-300">V10.3_SA（休整雙幣・正反對稱精簡版）</b>規則：全體各擲不重複 D6 比大小決定 <b class="text-white">P1</b> 並依座位輪轉，所有人數統一採<b class="text-sky-300">「全空盤起手」</b>（起始 2/5 幣、6 枚單倍護盾 +1 幣、戰術休整 +2 幣、#4 +1幣(+2分)、#5 奪1幣(+1分)、#6 先鋒增援、階段 4 支援 0 幣戰術撤回防 #5）！`;
+
+        const listEl = document.getElementById('seat-resolution-list');
+        listEl.innerHTML = G.players.map((p, i) => `
+          <div class="bg-[#0b0e17] border border-slate-800 rounded-xl px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3.5">
+              <span class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-black text-xs">P${i + 1}</span>
+              <div>
+                <div class="text-sm font-black text-white">
+                  ${p.name} <span class="text-xs font-normal text-slate-400">(Slot ${p.slotId} ‧ ${p.type}${p.type === 'AI' ? (p.difficulty === 'CASUAL' ? ' ‧ 休閒' : ' ‧ 高手') : ''})</span>
+                </div>
+                <div class="flex items-center gap-2 mt-1 flex-wrap">
+                  <span class="px-2 py-0.5 rounded bg-slate-800 text-[11px] font-bold text-slate-200">首擲點數：${p.seedCard}</span>
+                  <span class="text-[11px] text-sky-300 font-bold">🏳️ 全空盤起手（王座 1～6 皆為空位）</span>
+                </div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs font-black text-amber-400">🪙 起始 ${p.initCoins} / 上限 ${lobbyConfig.maxCoins} 幣</div>
+              <div class="text-[11px] text-slate-500">Seat ${i + 1}</div>
+            </div>
+          </div>
+        `).join('');
+
+        document.getElementById('seat-modal-econ-text').textContent =
+          `V10.3_SA 規格：起始 ${lobbyConfig.initialCoins} 幣 / 上限 ${lobbyConfig.maxCoins} 幣 / 護盾 ${MAX_SHIELD} 枚 (+${SHIELD_PAYOUT} 幣) / 休整 +${REST_GAIN} 幣 / #4 +${CARD4_GAIN}幣(+2分) / #5 奪1幣(+1分) / 階段4撤回`;
+
+        document.getElementById('seat-resolution-modal').classList.remove('hidden');
+      }
+
+      function confirmEnterArena() {
+        document.getElementById('seat-resolution-modal').classList.add('hidden');
+        matchCounter++;
+        document.getElementById('telemetry-match-badge').textContent = matchCounter;
+        switchMainTab('ARENA');
+        startTurn();
+      }
+
+      // ============================================================================
+      // 基礎經濟、撥盤追蹤與共用算術防呆引擎 (V10.3_SA 100% 金幣守恆)
+      // ============================================================================
+      function rollD6() {
+        return Math.floor(Math.random() * 6) + 1;
+      }
+
+      // 共用算術防呆過濾：異點算術 (W !== D) 嚴格過濾 1..6 且 t !== D
+      function getValidArithTargets(D, W) {
+        if (W === D) return [];
+        const targets = new Set();
+        const sum = D + W;
+        const diff = Math.abs(D - W);
+        if (sum >= 1 && sum <= 6 && sum !== D) targets.add(sum);
+        if (diff >= 1 && diff <= 6 && diff !== D) targets.add(diff);
+        return [...targets];
+      }
+
+      // 記帳口徑：帳面毛產出寫入 coinSources[sourceKey]，超上限溢額寫入 coinSinks.overflowLost，確保 100% 金幣守恆
+      function addCoin(player, amount, sourceKey) {
+        if (amount <= 0) return 0;
+        const before = player.coins;
+        player.coins = Math.min(lobbyConfig.maxCoins, player.coins + amount);
+        const actual = player.coins - before;
+        const overflow = amount - actual;
+
+        if (actual > 0) T.dialTouches += 1;
+        if (sourceKey && T.coinSources[sourceKey] !== undefined) {
+          T.coinSources[sourceKey] += amount;
+        }
+        if (overflow > 0) {
+          T.coinSinks.overflowLost += overflow;
+        }
+        return actual;
+      }
+
+      function spendCoin(player, amount, sinkKey) {
+        if (amount <= 0) return true;
+        if (player.coins < amount) return false;
+        player.coins -= amount;
+        T.dialTouches += 1;
+        if (sinkKey && T.coinSinks[sinkKey] !== undefined) {
+          T.coinSinks[sinkKey] += amount;
+        }
+        return true;
+      }
+
+      // V10.3_SA 單倍護盾撫卹 (+1 幣)
+      function triggerShieldInsurance(slot, defender, cardNum, reasonType, reasonLabel) {
+        if (!slot.shield) return;
+        slot.shield = false;
+        G.supply.shield = Math.min(MAX_SHIELD, G.supply.shield + 1);
+        if (reasonType === 'CLASH') T.tokenStats.shieldInsuranceByClash++;
+        else T.tokenStats.shieldInsuranceBySkill++;
+        const gained = addCoin(defender, SHIELD_PAYOUT, 'shieldInsurance');
+        const overflow = SHIELD_PAYOUT - gained;
+        logEvent(
+          `🛡️💰【護盾撫卹】${defender.seatTag} [${defender.name}] 的 #${cardNum} 因${reasonLabel}退回陣地，護盾破裂歸還公區，領取 +${SHIELD_PAYOUT} 幣` +
+          `（實得 +${gained} 幣${overflow > 0 ? `、溢額 ${overflow} 幣歸公區` : ''}，當前 ${defender.coins}/${lobbyConfig.maxCoins} 幣）！`
+        );
+      }
+
+      function awardAwakeningScore(player, cardNum) {
+        const pts = CARD_SPECS[cardNum].points;
+        player.score += pts;
+        T.cards[cardNum].awakened++;
+        T.cards[cardNum].pointsScored += pts;
+        logEvent(`🌟【登頂覺醒得分】${player.seatTag} [${player.name}] 的 #${cardNum} 晉升至第二層覺醒牌！獲得 +${pts} 分 (總分: ${player.score}/${lobbyConfig.targetVP})`);
+
+        if (player.score >= lobbyConfig.targetVP) {
+          G.gameOver = true;
+          G.winner = player;
+          T.winnerId = player.id;
+          T.durationSec = Math.max(1, Math.round((Date.now() - G.startTimeMs) / 1000));
+          clearAITimers();
+          logEvent(`🏆【終局宣告】${player.seatTag} [${player.name}] 累計達 ${player.score} 分（>=${lobbyConfig.targetVP}分），立即奪得王座獲勝！`);
+        }
+      }
+
+      // ============================================================================
+      // 回合核心狀態機 (階段 1 -> 階段 2 -> 階段 3 -> 階段 4)
+      // ============================================================================
+      function startTurn() {
+        clearAITimers();
+        turnSeq++;
+        if (G.gameOver) {
+          renderAll();
+          return;
+        }
+
+        const p = G.players[G.currentPlayerIdx];
+        T.totalTurns++;
+        if (p.coins === 0) T.zeroCoinTurns++;
+
+        G.phase = 1;
+        G.subState = 'NEED_FATE_ROLL';
+        G.fateDie = null;
+        G.selectedWillDie = null;
+        G.activeAssignment = null;
+        G.commandContext = null;
+        G.skillContext = null;
+
+        const zeroNote = p.coins === 0 ? `（0幣：可選 0 幣【順應天命】直推 #D 或戰術休整 +${REST_GAIN} 幣）` : '';
+        logEvent(`── 第 ${G.round} 回合：輪到 ${p.seatTag} [${p.name}]${zeroNote} ──`);
+        renderAll();
+
+        if (autoPlayMode || p.type === 'AI') {
+          scheduleAI(() => aiExecutePhase1(), 360);
+        }
+      }
+
+      function playerRollFateDie() {
+        if (G.gameOver || G.phase !== 1 || G.subState !== 'NEED_FATE_ROLL') return;
+        const p = G.players[G.currentPlayerIdx];
+        G.fateDie = rollD6();
+        logEvent(`🎲 ${p.seatTag} [${p.name}] 擲出天命骰：D = [${G.fateDie}]。`);
+        enterPhase2();
+      }
+
+      function enterPhase2() {
+        G.phase = 2;
+        G.subState = 'NORMAL_WILL_SELECT';
+        G.selectedWillDie = null;
+        const p = G.players[G.currentPlayerIdx];
+        renderAll();
+
+        if (autoPlayMode || p.type === 'AI') {
+          scheduleAI(() => aiExecutePhase2(), 420);
+        }
+      }
+
+      function getWillDieCost(D, W) {
+        if (W === D) return 3;
+        return W <= 3 ? 1 : 2;
+      }
+
+      // 0 幣【順應天命】直推 #D（僅禁推我方已覺醒牌；擊退敵方覺醒牌 0 幣）
+      function getFreeDirectAction(player, D) {
+        const slot = G.thrones[D];
+        const isMyAwk = slot.owner === player.id && slot.level === 2;
+        const isEnemyAwk = slot.owner !== null && slot.owner !== player.id && slot.level === 2;
+        const isMyBase = slot.owner === player.id && slot.level === 1;
+        return {
+          mode: 'FREE_DIRECT',
+          willDie: 0,
+          target: D,
+          cost: 0,
+          isEnemyAwk,
+          canAfford: !isMyAwk,
+          disabledReason: isMyAwk ? `#${D} 已為我方覺醒牌` : '',
+          label: isMyBase
+            ? `🎲 0幣【順應天命】充能覺醒 #${D}`
+            : `🎲 0幣【順應天命】直推 #${D}${isEnemyAwk ? ' (0幣擊退敵覺醒)' : ''}`
+        };
+      }
+
+      // 付費意志骰 W = 1~6 合法行動清單（同點直覺禁指定己方牌；異點套用 getValidArithTargets 防呆）
+      function getWillDieActions(player, D, W) {
+        const actions = [];
+        const cost = getWillDieCost(D, W);
+        const canAfford = player.coins >= cost;
+
+        if (W === D) {
+          const slot = G.thrones[D];
+          // V10.2+ 規定：3 幣【同點直覺】僅限空位或敵方卡牌（禁指定己方基礎牌與覺醒牌）
+          if (slot.owner !== player.id) {
+            const isEnemyAwk = slot.owner !== null && slot.level === 2;
+            actions.push({
+              mode: 'DIRECT_AWAKEN',
+              willDie: W,
+              target: D,
+              cost,
+              canAfford,
+              label: `⚡【同點直覺 #${D}】(付 ${cost} 幣：直接以覺醒面佔領並得分${isEnemyAwk ? '・0幣擊退敵覺醒' : ''})`
+            });
+          }
+          return actions;
+        }
+
+        const targets = getValidArithTargets(D, W);
+        targets.forEach(t => {
+          const slot = G.thrones[t];
+          if (slot.owner === player.id && slot.level === 2) return;
+          const isMyBase = slot.owner === player.id && slot.level === 1;
+          const isEnemyAwk = slot.owner !== null && slot.owner !== player.id && slot.level === 2;
+          const isAdd = (D + W === t);
+          const mode = isAdd ? 'ADD' : 'SUB';
+          const expr = isAdd ? `${D}+${W}=${t}` : `|${D}-${W}|=${t}`;
+          actions.push({
+            mode,
+            willDie: W,
+            target: t,
+            cost,
+            canAfford,
+            label: `${isAdd ? '➕' : '➖'} ${expr} ➔ ${isMyBase ? `充能覺醒 #${t}` : `推 #${t}`}${isEnemyAwk ? ' (0幣擊退敵覺醒)' : ''} (付 ${cost} 幣)`
+          });
+        });
+
+        return actions;
+      }
+
+      // 檢查玩家於當前天命骰 D 下是否存在任一合法推牌（供滿上限禁休整防呆使用）
+      function hasAnyLegalPush(player, D) {
+        if (getFreeDirectAction(player, D).canAfford) return true;
+        for (let w = 1; w <= 6; w++) {
+          if (getWillDieActions(player, D, w).some(a => a.canAfford)) return true;
+        }
+        return false;
+      }
+
+      function selectWillDieUI(w) {
+        if (G.phase !== 2 || G.subState !== 'NORMAL_WILL_SELECT') return;
+        G.selectedWillDie = w;
+        renderAll();
+      }
+
+      function executePhase2Action(willDie, mode) {
+        if (G.gameOver || G.phase !== 2 || G.subState !== 'NORMAL_WILL_SELECT') return;
+        const p = G.players[G.currentPlayerIdx];
+        const D = G.fateDie;
+
+        let act = null;
+        if (mode === 'FREE_DIRECT') {
+          act = getFreeDirectAction(p, D);
+        } else {
+          act = getWillDieActions(p, D, willDie).find(a => a.mode === mode);
+        }
+        if (!act || !act.canAfford) return;
+
+        if (act.cost > 0) {
+          if (!spendCoin(p, act.cost, 'willDieCost')) return;
+        }
+
+        if (act.mode === 'FREE_DIRECT') {
+          T.phase2Choices.freeDirectPush_0coin++;
+          logEvent(`🎲 ${p.seatTag} [${p.name}] 選擇 0 幣【順應天命】直推 #${act.target}！`);
+        } else if (act.mode === 'DIRECT_AWAKEN') {
+          T.phase2Choices.willDirectAwaken_3coin++;
+          logEvent(`⚡ ${p.seatTag} [${p.name}] 支付 3 幣手選同點意志骰 W=[${willDie}]，發動【同點直覺 #${act.target}】！`);
+        } else {
+          if (act.cost === 1) T.phase2Choices.willSmall_1coin++;
+          else T.phase2Choices.willBig_2coin++;
+          const sym = act.mode === 'ADD' ? `${D}+${willDie}=${act.target}` : `|${D}-${willDie}|=${act.target}`;
+          logEvent(`🧮 ${p.seatTag} [${p.name}] 支付 ${act.cost} 幣手選意志骰 W=[${willDie}]，宣告 ${sym} 推進 #${act.target}！`);
+        }
+
+        G.activeAssignment = {
+          mode: act.mode,
+          cardNum: act.target,
+          isDirectAwaken: act.mode === 'DIRECT_AWAKEN'
+        };
+        resolvePhase3Push();
+      }
+
+      function executePhase2Rest() {
+        if (G.gameOver || G.phase !== 2) return;
+        const p = G.players[G.currentPlayerIdx];
+        // V10.3_SA 防呆：滿上限行動幣且場上存在合法推進選項時禁止休整
+        if (p.coins >= lobbyConfig.maxCoins && hasAnyLegalPush(p, G.fateDie)) return;
+
+        T.phase2Choices.rest_2coin++;
+        const added = addCoin(p, REST_GAIN, 'rest');
+        const overflow = REST_GAIN - added;
+        logEvent(
+          `🪙【戰術休整回氣】${p.seatTag} [${p.name}] 放棄出牌，自公區領取 +${REST_GAIN} 幣` +
+          `（實得 +${added} 幣${overflow > 0 ? `、溢額 ${overflow} 幣歸公區` : ''}，當前 ${p.coins}/${lobbyConfig.maxCoins} 幣），結束回合。`
+        );
+        endTurn();
+      }
+
+      // ============================================================================
+      // 階段 3：移動、同點直覺與 0 幣擊退／單倍護盾撫卹結算
+      // ============================================================================
+      function resolvePhase3Push() {
+        G.phase = 3;
+        const p = G.players[G.currentPlayerIdx];
+        const { cardNum, isDirectAwaken } = G.activeAssignment;
+        const slot = G.thrones[cardNum];
+        T.cards[cardNum].pushed++;
+
+        // 1. 空位進駐
+        if (slot.owner === null) {
+          slot.owner = p.id;
+          slot.shield = false;
+          if (isDirectAwaken) {
+            slot.level = 2;
+            logEvent(`⚡👑 ${p.seatTag} [${p.name}] 發動【同點直覺 #${cardNum}】，直接以覺醒面佔領並獲得 +${CARD_SPECS[cardNum].points} 分！`);
+            awardAwakeningScore(p, cardNum);
+            if (G.gameOver) { renderAll(); return; }
+            enterPhase4({ cardNum, finalLevel: 2 });
+          } else {
+            slot.level = 1;
+            logEvent(`🏰 ${p.seatTag} [${p.name}] 的 #${cardNum}【${CARD_SPECS[cardNum].baseName}】進駐王座第一層（基礎牌）！`);
+            enterPhase4({ cardNum, finalLevel: 1 });
+          }
+          return;
+        }
+
+        // 2. 我方基礎牌充能覺醒
+        if (slot.owner === p.id && slot.level === 1) {
+          slot.level = 2;
+          if (slot.shield) {
+            T.tokenStats.shieldRetainedOnAwk++;
+            logEvent(`🛡️ #${cardNum} 升級為覺醒牌，身上原有的【護盾】完整保留！`);
+          }
+          awardAwakeningScore(p, cardNum);
+          if (G.gameOver) { renderAll(); return; }
+          enterPhase4({ cardNum, finalLevel: 2 });
+          return;
+        }
+
+        // 3. 敵方佔領 ➔ 全面 0 幣免費擊退（基礎或覺醒皆 0 幣）＋ 單倍護盾撫卹 (+1 幣)
+        const defender = G.players[slot.owner];
+        if (slot.level === 1) {
+          T.clashChoices.freeBaseKnockback++;
+          logEvent(`⚔️ ${p.seatTag} 免費擊退 ${defender.seatTag} 的 #${cardNum} 基礎牌！`);
+          if (slot.shield) {
+            triggerShieldInsurance(slot, defender, cardNum, 'CLASH', '被敵方物理推進擊退');
+          }
+        } else {
+          T.clashChoices.freeAwkKnockback++;
+          logEvent(`⚔️ ${p.seatTag} 免費（0幣）擊退 ${defender.seatTag} 的 #${cardNum} 覺醒牌回陣地！`);
+          if (slot.shield) {
+            triggerShieldInsurance(slot, defender, cardNum, 'CLASH', '被敵方物理擊退');
+          }
+        }
+
+        slot.owner = p.id;
+        slot.shield = false;
+
+        if (isDirectAwaken) {
+          slot.level = 2;
+          logEvent(`⚡👑 ${p.seatTag} [${p.name}] 發動【同點直覺 #${cardNum}】，直接以覺醒面佔領並獲得 +${CARD_SPECS[cardNum].points} 分！`);
+          awardAwakeningScore(p, cardNum);
+          if (G.gameOver) { renderAll(); return; }
+          enterPhase4({ cardNum, finalLevel: 2 });
+        } else {
+          slot.level = 1;
+          enterPhase4({ cardNum, finalLevel: 1 });
+        }
+      }
+
+      // ============================================================================
+      // 階段 4：全面零付費 + 零保底 + 0 幣戰術撤回防#5 + 單次權能鐵律
+      // ============================================================================
+      function enterPhase4(context) {
+        G.phase = 4;
+        G.subState = 'COMMAND_CHOICE';
+        G.commandContext = context;
+        const p = G.players[G.currentPlayerIdx];
+        const msg = context.finalLevel === 2
+          ? `👑 進入【階段 4（覺醒特權）】：可免費發動我方全場任一卡牌、0 幣撤回己方覺醒牌或直接結束回合`
+          : `⚡ 進入【階段 4】：可免費發動當前 #${context.cardNum} 權能、0 幣撤回己方覺醒牌或直接結束回合`;
+        logEvent(msg);
+        renderAll();
+
+        if (autoPlayMode || p.type === 'AI') {
+          scheduleAI(() => aiExecutePhase4(), 380);
+        }
+      }
+
+      function getAllyCommandTargets(playerId, selfCardNum) {
+        const allies = [];
+        for (let c = 1; c <= 6; c++) {
+          if (c !== selfCardNum && G.thrones[c].owner === playerId && G.thrones[c].level > 0) {
+            allies.push({ cardNum: c, level: G.thrones[c].level });
+          }
+        }
+        return allies;
+      }
+
+      function getMyAwakenedCards(playerId) {
+        const list = [];
+        for (let c = 1; c <= 6; c++) {
+          if (G.thrones[c].owner === playerId && G.thrones[c].level === 2) list.push(c);
+        }
+        return list;
+      }
+
+      function getEmptyCavalrySlots() {
+        const empties = [];
+        for (let c = 1; c <= 5; c++) {
+          if (G.thrones[c].owner === null) empties.push(c);
+        }
+        return empties;
+      }
+
+      function countActiveShields() {
+        let n = 0;
+        for (let c = 1; c <= 6; c++) {
+          if (G.thrones[c].owner !== null && G.thrones[c].shield) n++;
+        }
+        return n;
+      }
+
+      // 預檢卡牌對玩家是否具備合法可執行目標（正反 100% 同效）
+      function canSkillExecuteForPlayer(cardNum, level, player) {
+        if (cardNum === 1) {
+          for (let c = 1; c <= 6; c++) {
+            if (G.thrones[c].owner !== null && G.thrones[c].owner !== player.id && G.thrones[c].level === 1) return true;
+          }
+          return false;
+        }
+        if (cardNum === 2) {
+          if (G.supply.shield <= 0 || countActiveShields() >= MAX_SHIELD) return false;
+          for (let c = 1; c <= 6; c++) {
+            if (G.thrones[c].owner === player.id && !G.thrones[c].shield) return true;
+          }
+          return false;
+        }
+        if (cardNum === 3) {
+          // 僅限其他我方基礎牌（不含 #3 自身）
+          for (let c = 1; c <= 6; c++) {
+            if (c !== 3 && G.thrones[c].owner === player.id && G.thrones[c].level === 1) return true;
+          }
+          return false;
+        }
+        if (cardNum === 4) {
+          return true; // 即使滿幣也可發動（溢額計入 overflowLost，但 AI 會在 evalAbility 自行跳過滿幣空發）
+        }
+        if (cardNum === 5) {
+          for (let c = 1; c <= 6; c++) {
+            if (G.thrones[c].owner !== null && G.thrones[c].owner !== player.id && G.thrones[c].level === 2) return true;
+          }
+          return false;
+        }
+        if (cardNum === 6) {
+          return getEmptyCavalrySlots().length > 0;
+        }
+        return false;
+      }
+
+      function triggerFreeSelfCommand() {
+        if (G.phase !== 4 || G.subState !== 'COMMAND_CHOICE' || !G.commandContext) return;
+        const p = G.players[G.currentPlayerIdx];
+        const { cardNum, finalLevel } = G.commandContext;
+        if (!canSkillExecuteForPlayer(cardNum, finalLevel, p)) return;
+
+        if (finalLevel === 1) {
+          T.phase4CommandChoices.freeSelfBase++;
+          logEvent(`⚡ ${p.seatTag} 免費發動當前 #${cardNum}【${CARD_SPECS[cardNum].baseTitle}】！`);
+          dispatchCardSkill(cardNum, 1);
+        } else {
+          T.phase4CommandChoices.freeSelfAwk++;
+          logEvent(`👑 ${p.seatTag} 免費發動當前覺醒 #${cardNum}【${CARD_SPECS[cardNum].awkTitle}】！`);
+          dispatchCardSkill(cardNum, 2);
+        }
+      }
+
+      function triggerAllyCommand(allyCardNum) {
+        if (G.phase !== 4 || G.subState !== 'COMMAND_CHOICE' || !G.commandContext) return;
+        if (G.commandContext.finalLevel !== 2) return; // 僅覺醒登頂享有免費調度隊友特權
+        const p = G.players[G.currentPlayerIdx];
+        const slot = G.thrones[allyCardNum];
+        if (!slot || slot.owner !== p.id || !canSkillExecuteForPlayer(allyCardNum, slot.level, p)) return;
+
+        if (slot.level === 1) {
+          T.phase4CommandChoices.freeAllyBase++;
+          logEvent(`👑 ${p.seatTag} 動用覺醒特權，免費調度我方在場 #${allyCardNum}【${CARD_SPECS[allyCardNum].baseTitle}】！`);
+          dispatchCardSkill(allyCardNum, 1);
+        } else {
+          T.phase4CommandChoices.freeAllyAwk++;
+          logEvent(`👑 ${p.seatTag} 動用覺醒特權，免費調度我方在場覺醒 #${allyCardNum}【${CARD_SPECS[allyCardNum].awkTitle}】！`);
+          dispatchCardSkill(allyCardNum, 2);
+        }
+      }
+
+      function startPhase4Retreat() {
+        if (G.phase !== 4 || G.subState !== 'COMMAND_CHOICE') return;
+        const p = G.players[G.currentPlayerIdx];
+        const myAwk = getMyAwakenedCards(p.id);
+        if (myAwk.length === 0) return;
+
+        G.subState = 'SKILL_TARGET';
+        G.skillContext = {
+          type: 'P4_RETREAT_AWAKENED',
+          validThrones: myAwk,
+          title: '🏳️【0 幣戰術撤回（防 #5）】：請點擊我方王座區 1 張已覺醒牌退回個人陣地（保留勝分，帶🛡️盾歸還公區不領撫卹）'
+        };
+        renderAll();
+      }
+
+      function cancelSkillTarget() {
+        if (G.phase !== 4 || G.subState !== 'SKILL_TARGET') return;
+        if (G.skillContext && G.skillContext.type === 'P4_RETREAT_AWAKENED') {
+          G.subState = 'COMMAND_CHOICE';
+          G.skillContext = null;
+          renderAll();
+        }
+      }
+
+      function passPhase4Turn() {
+        if (G.phase !== 4) return;
+        const p = G.players[G.currentPlayerIdx];
+        T.phase4CommandChoices.passTurn++;
+        logEvent(`⏭️ ${p.seatTag} 放棄發動階段 4 權能，直接結束回合（V10.3_SA 無保底領幣）。`);
+        endTurn();
+      }
+
+      // V10.3_SA 1~6 號卡牌技能分發器（正反 100% 同效）
+      function dispatchCardSkill(cardNum, level) {
+        const p = G.players[G.currentPlayerIdx];
+        const isAwk = (level === 2);
+
+        // #1【刺客伏擊】：純退敵基礎牌
+        if (cardNum === 1) {
+          const targets = [];
+          for (let c = 1; c <= 6; c++) {
+            if (G.thrones[c].owner !== null && G.thrones[c].owner !== p.id && G.thrones[c].level === 1) targets.push(c);
+          }
+          if (targets.length === 0) { endTurn(); return; }
+          G.subState = 'SKILL_TARGET';
+          G.skillContext = {
+            type: 'ASSASSIN_KNOCK',
+            isAwk,
+            validThrones: targets,
+            title: '🗡️ #1【刺客伏擊】：請點擊王座區 1 張敵方【基礎牌】退回陣地（帶🛡️盾則對手領 +1 幣撫卹）'
+          };
+          renderAll();
+          return;
+        }
+
+        // #2【堅定護航】：替我方無盾牌掛護盾
+        if (cardNum === 2) {
+          const targets = [];
+          if (G.supply.shield > 0) {
+            for (let c = 1; c <= 6; c++) {
+              if (G.thrones[c].owner === p.id && !G.thrones[c].shield) targets.push(c);
+            }
+          }
+          if (targets.length === 0) { endTurn(); return; }
+          G.subState = 'SKILL_TARGET';
+          G.skillContext = {
+            type: 'SHIELD_GUARD',
+            isAwk,
+            validThrones: targets,
+            title: '🛡️ #2【堅定護航】：請點擊我方王座區 1 張未掛盾卡牌（含自身）掛載【🛡️護盾】'
+          };
+          renderAll();
+          return;
+        }
+
+        // #3【奧術召喚 / 神聖召喚】：充能其他我方基礎牌（嚴格排除 #3 自身）
+        if (cardNum === 3) {
+          const targets = [];
+          for (let c = 1; c <= 6; c++) {
+            if (c !== 3 && G.thrones[c].owner === p.id && G.thrones[c].level === 1) targets.push(c);
+          }
+          if (targets.length === 0) { endTurn(); return; }
+          G.subState = 'SKILL_TARGET';
+          G.skillContext = {
+            type: 'SUMMON_AWAKEN',
+            isAwk,
+            validThrones: targets,
+            title: `🔮 #3【${isAwk ? '神聖召喚' : '奧術召喚'}】：請點擊我方王座區 1 張其他【基礎牌】（不含自身）立即翻面覺醒得分！`
+          };
+          renderAll();
+          return;
+        }
+
+        // #4【點石成金】：正反皆領 +1 幣（帳面 +1 幣入 Sources，溢額入 overflowLost）
+        if (cardNum === 4) {
+          if (isAwk) T.cards[4].awkTriggered++;
+          else T.cards[4].baseTriggered++;
+          const sourceKey = isAwk ? 'card4AwkSupply' : 'card4Base';
+          const actualGain = addCoin(p, CARD4_GAIN, sourceKey);
+          const overflow = CARD4_GAIN - actualGain;
+          logEvent(
+            `⚗️ #4【點石成金】生效：${p.seatTag} 領取 +${CARD4_GAIN} 幣` +
+            `（實得 +${actualGain} 幣${overflow > 0 ? `、溢額 ${overflow} 幣歸公區` : ''}，當前 ${p.coins}/${lobbyConfig.maxCoins} 幣）。`
+          );
+          endTurn();
+          return;
+        }
+
+        // #5【時空扭曲】：先強奪敵方覺醒牌持有者 1 幣 ➔ 退敵覺醒（觸發護盾 +1 幣撫卹）➔ 我方同號基礎牌純站位搶佔
+        if (cardNum === 5) {
+          const targets = [];
+          for (let c = 1; c <= 6; c++) {
+            if (G.thrones[c].owner !== null && G.thrones[c].owner !== p.id && G.thrones[c].level === 2) targets.push(c);
+          }
+          if (targets.length === 0) { endTurn(); return; }
+          G.subState = 'SKILL_TARGET';
+          G.skillContext = {
+            type: 'WARP_SEIZE',
+            isAwk,
+            validThrones: targets,
+            title: '🌀 #5【時空扭曲】：請點擊王座區 1 張敵方【覺醒牌】，先奪其 1 幣再退回陣地並以我方同號基礎牌搶佔！'
+          };
+          renderAll();
+          return;
+        }
+
+        // #6【先鋒增援】：選 1～5 號空格派我方對應手牌純站位
+        if (cardNum === 6) {
+          const empties = getEmptyCavalrySlots();
+          if (empties.length === 0) { endTurn(); return; }
+          G.subState = 'SKILL_TARGET';
+          G.skillContext = {
+            type: 'CAVALRY_ADVANCE',
+            isAwk,
+            validThrones: empties,
+            title: '🐎 #6【先鋒增援】：請點擊王座區 1～5 號中任 1 個【未佔位空格】，派我方對應手牌以基礎面進駐（不發技）！'
+          };
+          renderAll();
+          return;
+        }
+      }
+
+      // 處理王座區軌道點擊（階段 4 目標選擇）
+      function handleThroneClick(cardNum) {
+        if (G.phase !== 4 || G.subState !== 'SKILL_TARGET' || !G.skillContext) return;
+        const p = G.players[G.currentPlayerIdx];
+        const ctx = G.skillContext;
+        if (!ctx.validThrones || !ctx.validThrones.includes(cardNum)) return;
+
+        const slot = G.thrones[cardNum];
+
+        // #1【刺客伏擊】
+        if (ctx.type === 'ASSASSIN_KNOCK') {
+          if (ctx.isAwk) T.cards[1].awkTriggered++;
+          else T.cards[1].baseTriggered++;
+          const def = G.players[slot.owner];
+          logEvent(`🗡️ #1【刺客伏擊】將 ${def.seatTag} 的 #${cardNum} 基礎牌退回個人陣地！`);
+          if (slot.shield) {
+            triggerShieldInsurance(slot, def, cardNum, 'SKILL', '受敵方 #1【刺客伏擊】退回');
+          }
+          slot.owner = null;
+          slot.level = 0;
+          slot.shield = false;
+          endTurn();
+          return;
+        }
+
+        // #2【堅定護航】
+        if (ctx.type === 'SHIELD_GUARD') {
+          if (ctx.isAwk) T.cards[2].awkTriggered++;
+          else T.cards[2].baseTriggered++;
+          slot.shield = true;
+          G.supply.shield = Math.max(0, G.supply.shield - 1);
+          T.tokenStats.shieldApplied++;
+          logEvent(`🛡️ #2【堅定護航】為 ${p.seatTag} 的 #${cardNum} 掛載了【護盾】！`);
+          endTurn();
+          return;
+        }
+
+        // #3【奧術召喚 / 神聖召喚】（補齊護盾保留日誌，嚴格不觸發第二次階段 4）
+        if (ctx.type === 'SUMMON_AWAKEN') {
+          if (ctx.isAwk) T.cards[3].awkTriggered++;
+          else T.cards[3].baseTriggered++;
+          T.cards[3].assistedAwakenings++;
+          T.cards[3].assistedPoints += CARD_SPECS[cardNum].points;
+
+          const hadShield = Boolean(slot.shield);
+          slot.level = 2;
+          const abilityName = ctx.isAwk ? '神聖召喚' : '奧術召喚';
+          logEvent(`🔮 #3【${abilityName}】使 ${p.seatTag} 的 #${cardNum} 立即充能翻面覺醒！`);
+          if (hadShield) {
+            T.tokenStats.shieldRetainedOnAwk++;
+            logEvent(`🛡️ #${cardNum} 升級為覺醒牌，身上原有的【護盾】完整保留！`);
+          }
+          awardAwakeningScore(p, cardNum);
+          if (G.gameOver) { renderAll(); return; }
+          endTurn();
+          return;
+        }
+
+        // #5【時空扭曲】（嚴格時序：Step 1 先奪 1 幣 ➔ Step 2 退敵覺醒觸發護盾 +1 幣撫卹 ➔ Step 3 我方同號基礎牌純站位）
+        if (ctx.type === 'WARP_SEIZE') {
+          if (ctx.isAwk) T.cards[5].awkTriggered++;
+          else T.cards[5].baseTriggered++;
+          T.warpSeizeCount++;
+          T.cards[cardNum].pushed++;
+          T.cards[cardNum].warpSeizedCount++;
+
+          const def = G.players[slot.owner];
+          const hadShield = Boolean(slot.shield);
+
+          // Step 1: 先向目標持有者強奪 1 幣（滿上限溢額計入 overflowLost 維持 100% 守恆）
+          let stolen = 0;
+          if (def.coins > 0) {
+            def.coins -= 1;
+            T.dialTouches += 1;
+            stolen = 1;
+            T.coinSources.card5Steal += 1;
+            if (p.coins < lobbyConfig.maxCoins) {
+              p.coins += 1;
+              T.dialTouches += 1;
+            } else {
+              T.coinSinks.overflowLost += 1;
+            }
+          } else {
+            T.card5StealWhiff += 1;
+          }
+
+          logEvent(
+            `🌀 #5【時空扭曲】：${p.seatTag} 先強奪 ${def.seatTag} ${stolen} 幣` +
+            `${stolen === 0 ? '（對方原 0 幣）' : ''}，將其 #${cardNum} 覺醒牌退回陣地，並以己方同號 #${cardNum} 基礎面搶佔該格！`
+          );
+
+          // Step 2: 若目標帶有護盾，於退回陣地時歸還公區並觸發 +1 幣撫卹
+          if (hadShield) {
+            triggerShieldInsurance(slot, def, cardNum, 'SKILL', '敵方 #5【時空扭曲】');
+          }
+
+          // Step 3: 我方同號卡牌以基礎面純站位（不連鎖發技）
+          slot.owner = p.id;
+          slot.level = 1;
+          slot.shield = false;
+          endTurn();
+          return;
+        }
+
+        // #6【先鋒增援】
+        if (ctx.type === 'CAVALRY_ADVANCE') {
+          if (ctx.isAwk) T.cards[6].awkTriggered++;
+          else T.cards[6].baseTriggered++;
+          T.cavalryAdvanceCount++;
+          T.cards[cardNum].pushed++;
+          T.cards[cardNum].cavalryPulledCount++;
+          slot.owner = p.id;
+          slot.level = 1;
+          slot.shield = false;
+          logEvent(`🐎 #6【先鋒增援】：${p.seatTag} 將個人陣地的 #${cardNum}【${CARD_SPECS[cardNum].baseName}】直接增援進駐王座區 #${cardNum} 空格（純站位不發技）！`);
+          endTurn();
+          return;
+        }
+
+        // 階段 4【0 幣戰術撤回（防 #5）】
+        if (ctx.type === 'P4_RETREAT_AWAKENED') {
+          const hadShield = Boolean(slot.shield);
+          if (hadShield) {
+            slot.shield = false;
+            G.supply.shield = Math.min(MAX_SHIELD, G.supply.shield + 1);
+          }
+          slot.owner = null;
+          slot.level = 0;
+          T.phase4CommandChoices.fallbackRetreat0Coin++;
+          T.cards[cardNum].tacticalRetreats++;
+          logEvent(
+            `🏳️【戰術撤回】${p.seatTag} 放棄技能，主動將已覺醒的 #${cardNum} 退回個人陣地` +
+            `${hadShield ? '（身上護盾歸還公區，不領撫卹）' : '（保留已得勝分，防範 #5 搶幣）'}！`
+          );
+          endTurn();
+          return;
+        }
+      }
+
+      function endTurn() {
+        clearAITimers();
+        turnSeq++;
+        if (G.gameOver) {
+          renderAll();
+          return;
+        }
+        G.currentPlayerIdx = (G.currentPlayerIdx + 1) % G.players.length;
+        if (G.currentPlayerIdx === 0) {
+          G.round++;
+          T.totalRounds = G.round;
+        }
+        startTurn();
+      }
+
+      // ============================================================================
+      // AI 智慧決策引擎（V10.3_SA 核心權重常數表 + 高手/休閒雙難度預設）
+      // ============================================================================
+      const AI_CONFIG_V10_2 = {
+        // === 1. 遊戲邊界常數 ===
+        TARGET_VP: 10,
+        MAX_COINS: MAX_COINS,
+        MAX_SHIELDS: MAX_SHIELD,
+        SHIELD_PAYOUT: SHIELD_PAYOUT,
+        CARD4_GAIN: CARD4_GAIN,
+        CARD_VP: { 1: 2, 2: 2, 3: 2, 4: 2, 5: 1, 6: 2 },
+        // === 2. 階段 2 經濟與節奏權重 ===
+        COIN_PENALTY: 2.5,           // 起始 2 幣，軍費珍貴
+        REST_SCORE_LOW_COINS: 3.8,   // coins <= 1 時休整 (+2幣) 基礎分
+        REST_SCORE_LETHAL_DA: 5.5,   // 聽牌 (vp >= 8) 且休整後可跨過 3 幣直覺門檻
+        REST_SCORE_WITH_COINS: -5.0, // 其餘有幣情況嚴禁無故休整（僅在全場無合法推牌時作為保底）
+        VP_DIRECT_MULT: 9.0,         // 階段 3 立即覺醒得分權重（+2 分卡 = +18.0）
+        VP_C3_COMBO_MULT: 8.5,       // 階段 4 透過 #3 立即充能覺醒之預讀權重
+        BASE_SLOT_VP_MULT: 1.0,      // 佔領高分格（+2 分卡）之潛力加權
+        STD_KB_PENALTY: 0.0,         // V10.1-A+ 拆覺醒已 0 幣，不再扣分
+        // === 3. 攻防與擋分權重 ===
+        KNOCK_ENEMY_BASIC_MULT: 0.5, // 免費撞退敵方基礎牌加分
+        BLOCK_LETHAL_BONUS: 16.0,    // 撞退對手「下回合覺醒即達 10 分」之聽牌基礎格
+        BLOCK_LEADER_BONUS: 2.5,     // 干擾場上領先者（>= 6 分）加分
+        C1_REMOTE_LETHAL_BONUS: 14.0,// #1 遠端踢掉敵方聽牌基礎格之加權
+        SHIELD_GIFT_PENALTY: 4.5,    // 觸發對手護盾撫卹時，每送出 1 幣扣分
+        SHIELD_LETHAL_FEED_PENALTY: 12.0, // 防餵聽牌者直覺/覺醒軍費
+        // === 4. 階段 4 技能與撤回權重 ===
+        P4_DISCOUNT: 0.9,
+        COIN_GAIN_VALUE: 1.8,
+        SHIELD_APPLY_VALUE: 2.6,
+        C5_WARP_BASE: 3.2,
+        C6_DEPLOY_VALUE: 2.8,
+        // === 5. 隨機擾動 ===
+        NOISE: 0.1
+      };
+
+      function getAIConfig(player) {
+        const base = {
+          ...AI_CONFIG_V10_2,
+          TARGET_VP: lobbyConfig.targetVP,
+          MAX_COINS: lobbyConfig.maxCoins
+        };
+        if (player && player.difficulty === 'CASUAL') {
+          return {
+            ...base,
+            COIN_PENALTY: 1.5,
+            BLOCK_LETHAL_BONUS: 2.0,
+            C1_REMOTE_LETHAL_BONUS: 3.0,
+            SHIELD_GIFT_PENALTY: 1.0,
+            SHIELD_LETHAL_FEED_PENALTY: 2.5,
+            NOISE: 1.8
+          };
+        }
+        return base;
+      }
+
+      function cloneBoardSnapshot() {
+        const snap = {};
+        for (let c = 1; c <= 6; c++) {
+          snap[c] = {
+            owner: G.thrones[c].owner,
+            level: G.thrones[c].level,
+            shield: G.thrones[c].shield
+          };
+        }
+        return snap;
+      }
+
+      // 防餵絕殺護盾懲罰函式（配合 +1 幣單倍護盾）
+      function getShieldPenaltyV10(opp, cfg, board = G.thrones) {
+        const actualGift = Math.min(SHIELD_PAYOUT, cfg.MAX_COINS - opp.coins);
+        if (actualGift <= 0) return 0;
+        const hasOwnBasic = [1, 2, 3, 4, 5, 6].some(s => board[s].owner === opp.id && board[s].level === 1);
+        if (opp.score >= cfg.TARGET_VP - 2 && (opp.coins === 2 || (opp.coins === 0 && hasOwnBasic))) {
+          return actualGift * cfg.SHIELD_LETHAL_FEED_PENALTY;
+        }
+        return actualGift * cfg.SHIELD_GIFT_PENALTY;
+      }
+
+      // #5 時空扭曲單一目標評分
+      function evalCard5TargetV10(pid, slotNum, coinsAfter, cfg, board = G.thrones) {
+        const cell = board[slotNum];
+        const opp = G.players[cell.owner];
+        let score = cfg.C5_WARP_BASE + cfg.CARD_VP[slotNum] * 1.5;
+        if (opp.coins > 0) {
+          score += 2.2 + (coinsAfter < cfg.MAX_COINS ? 0.8 : 0);
+          if (opp.score >= cfg.TARGET_VP - 2 && opp.coins === 3) {
+            score += 5.5; // 掐斷聽牌者 3 幣同點直覺
+          }
+        }
+        if (cell.shield) score -= getShieldPenaltyV10(opp, cfg, board);
+        return score;
+      }
+
+      // 產生 V10.3_SA 階段 2 合法行動清單（全面 0 幣擊退、禁對己方開直覺、滿上限禁休整、target !== D 防呆）
+      function getLegalMovesV10(pid, D) {
+        const p = G.players[pid];
+        const moves = [];
+        const cellD = G.thrones[D];
+
+        // 1. 0 幣【順應天命】直推 #D（僅禁推我方已覺醒牌）
+        if (!(cellD.owner === pid && cellD.level === 2)) {
+          moves.push({ type: 'free_d', target: D, W: 0, cost: 0, mode: 'FREE_DIRECT' });
+        }
+
+        // 2. 3 幣【同點直覺】（僅限空位或敵方卡牌，禁指定己方基礎與覺醒牌）
+        if (p.coins >= 3 && cellD.owner !== pid) {
+          moves.push({ type: 'da', target: D, W: D, cost: 3, mode: 'DIRECT_AWAKEN' });
+        }
+
+        // 3. 1 幣小骰 / 2 幣大骰（保留 target !== D 防呆）
+        if (p.coins >= 1) {
+          for (let W = 1; W <= 6; W++) {
+            if (W === D) continue;
+            const cost = W <= 3 ? 1 : 2;
+            if (p.coins < cost) continue;
+            const targets = getValidArithTargets(D, W);
+            for (const t of targets) {
+              const cell = G.thrones[t];
+              if (cell.owner === pid && cell.level === 2) continue;
+              const mode = (D + W === t) ? 'ADD' : 'SUB';
+              moves.push({ type: W <= 3 ? 'small' : 'big', target: t, W, cost, mode });
+            }
+          }
+        }
+
+        // 4. 0 幣【戰術休整 +2 幣】：滿上限且存在合法推牌時禁止休整
+        if (!(p.coins >= lobbyConfig.maxCoins && moves.length > 0)) {
+          moves.push({ type: 'rest', target: null, W: 0, cost: 0, mode: 'REST' });
+        }
+        return moves;
+      }
+
+      // 階段 4 單一卡牌權能估值（全 6 卡正反同效）
+      function evalAbilityV10(pid, cardNum, coinsAfter, vpAfter, cfg, board = G.thrones) {
+        const maxOppVP = Math.max(...G.players.filter(pl => pl.id !== pid).map(pl => pl.score));
+
+        if (cardNum === 1) {
+          const targets = [1, 2, 3, 4, 5, 6].filter(s => board[s].owner !== null && board[s].owner !== pid && board[s].level === 1);
+          if (!targets.length) return { ok: false, val: 0 };
+          let bestVal = -99;
+          for (const s of targets) {
+            const opp = G.players[board[s].owner];
+            let v = 2.1 + (opp.score === maxOppVP && opp.score >= 5 ? 2.0 : 0);
+            if (opp.score + cfg.CARD_VP[s] >= cfg.TARGET_VP) {
+              v += cfg.C1_REMOTE_LETHAL_BONUS;
+            }
+            if (board[s].shield) v -= getShieldPenaltyV10(opp, cfg, board);
+            if (v > bestVal) bestVal = v;
+          }
+          return { ok: true, val: bestVal };
+        }
+
+        if (cardNum === 2) {
+          const activeShields = [1, 2, 3, 4, 5, 6].filter(s => board[s].owner !== null && board[s].shield).length;
+          if (activeShields >= cfg.MAX_SHIELDS) return { ok: false, val: 0 };
+          const hasUnshielded = [1, 2, 3, 4, 5, 6].some(s => board[s].owner === pid && !board[s].shield);
+          return hasUnshielded ? { ok: true, val: cfg.SHIELD_APPLY_VALUE } : { ok: false, val: 0 };
+        }
+
+        if (cardNum === 3) {
+          const ownBasics = [1, 2, 3, 4, 5, 6].filter(s => s !== 3 && board[s].owner === pid && board[s].level === 1);
+          if (!ownBasics.length) return { ok: false, val: 0 };
+          const bestVP = Math.max(...ownBasics.map(s => cfg.CARD_VP[s]));
+          if (vpAfter + bestVP >= cfg.TARGET_VP) return { ok: true, val: 900 };
+          return { ok: true, val: bestVP * 5.0 };
+        }
+
+        if (cardNum === 4) {
+          // V10.3_SA：#4 退回正反皆 +1 幣（覺醒 +2 分），保留跨過 3 幣直覺門檻加分
+          if (coinsAfter >= cfg.MAX_COINS) return { ok: false, val: 0 };
+          const gain = Math.min(CARD4_GAIN, cfg.MAX_COINS - coinsAfter);
+          const base = coinsAfter <= 2 ? 2.8 : (coinsAfter === 3 ? 1.8 : 0.6);
+          let score = base * (gain >= 2 ? 1.75 : 1.0);
+          if (coinsAfter < 3 && coinsAfter + gain >= 3) score += 1.4;
+          return { ok: true, val: score };
+        }
+
+        if (cardNum === 5) {
+          const targets = [1, 2, 3, 4, 5, 6].filter(s => board[s].owner !== null && board[s].owner !== pid && board[s].level === 2);
+          if (!targets.length) return { ok: false, val: 0 };
+          let bestVal = -99;
+          for (const s of targets) {
+            const v = evalCard5TargetV10(pid, s, coinsAfter, cfg, board);
+            if (v > bestVal) bestVal = v;
+          }
+          return { ok: true, val: bestVal };
+        }
+
+        if (cardNum === 6) {
+          const hasEmpty = [1, 2, 3, 4, 5].some(s => board[s].owner === null);
+          return hasEmpty ? { ok: true, val: cfg.C6_DEPLOY_VALUE } : { ok: false, val: 0 };
+        }
+
+        return { ok: false, val: 0 };
+      }
+
+      // 階段 4 主動撤回己方覺醒牌評分（反制 #5 搶幣專用；絕不亂撤帶盾牌）
+      function evalRetreatV10_2B(pid, coinsAfter, vpAfter, cfg, board = G.thrones) {
+        const ownAwk = [1, 2, 3, 4, 5, 6].filter(s => board[s].owner === pid && board[s].level === 2);
+        const unshielded = ownAwk.filter(s => !board[s].shield);
+        if (unshielded.length === 0) return { slot: 0, val: 0 };
+
+        if (vpAfter >= cfg.TARGET_VP - 2 && coinsAfter >= 3 && ownAwk.length === 1) {
+          return { slot: unshielded[0], val: 6.5 };
+        }
+        if (vpAfter >= cfg.TARGET_VP - 2 && coinsAfter >= 2) {
+          const pick = [...unshielded].sort((a, b) => cfg.CARD_VP[b] - cfg.CARD_VP[a])[0];
+          return { slot: pick, val: 5.0 };
+        }
+        if (coinsAfter >= 2 && ownAwk.length === 1) {
+          return { slot: unshielded[0], val: 3.8 };
+        }
+        if (ownAwk.length >= 3) {
+          const pick = [...unshielded].sort((a, b) => cfg.CARD_VP[b] - cfg.CARD_VP[a])[0];
+          return { slot: pick, val: 1.8 };
+        }
+        return { slot: 0, val: 0 };
+      }
+
+      // 在虛擬盤面上預估進入階段 4 後的最大期望收益
+      function estimatePhase4ValueV10(pid, targetSlot, willAwaken, coinsAfter, vpAfter, cfg) {
+        const simBoard = cloneBoardSnapshot();
+        const prev = simBoard[targetSlot];
+        const keepShield = prev.owner === pid && prev.level === 1 && prev.shield;
+        simBoard[targetSlot] = {
+          owner: pid,
+          level: willAwaken ? 2 : 1,
+          shield: keepShield
+        };
+
+        let bestVal = 0;
+        const selfEval = evalAbilityV10(pid, targetSlot, coinsAfter, vpAfter, cfg, simBoard);
+        if (selfEval.ok && selfEval.val > bestVal) bestVal = selfEval.val;
+
+        if (willAwaken) {
+          for (let c = 1; c <= 6; c++) {
+            if (c !== targetSlot && simBoard[c].owner === pid && simBoard[c].level > 0) {
+              const allyEval = evalAbilityV10(pid, c, coinsAfter, vpAfter, cfg, simBoard);
+              if (allyEval.ok && allyEval.val > bestVal) bestVal = allyEval.val;
+            }
+          }
+        }
+
+        const retreatEval = evalRetreatV10_2B(pid, coinsAfter, vpAfter, cfg, simBoard);
+        if (retreatEval.val > bestVal) bestVal = retreatEval.val;
+
+        return bestVal;
+      }
+
+      /**
+       * V10.3_SA 高手級階段 2 行動評分（含聽牌期休整競速反制與 #4 防原地空轉）
+       */
+      function scoreMoveV10(pid, m, cfg = AI_CONFIG_V10_2) {
+        const p = G.players[pid];
+
+        if (m.type === 'rest') {
+          // 1. 聽牌期（>= TARGET_VP - 2 分）且手握 1~2 幣，休整 +2 幣可直接跨過 3 幣直覺門檻時大幅加權
+          if (p.score >= cfg.TARGET_VP - 2 && p.coins >= 1 && p.coins <= 2 && Math.min(cfg.MAX_COINS, p.coins + REST_GAIN) >= 3) {
+            const nextPid = (pid + 1) % G.players.length;
+            const nextOpp = G.players[nextPid];
+            const nextOpponentHasLethalBasic = [1, 2, 3, 4, 5, 6].some(
+              s => G.thrones[s].owner === nextPid && G.thrones[s].level === 1 && (nextOpp.score + cfg.CARD_VP[s] >= cfg.TARGET_VP)
+            );
+            const anyOpponentReadyForDA = G.players.some(
+              pl => pl.id !== pid && pl.coins >= 3 && pl.score >= cfg.TARGET_VP - 2
+            );
+            // 若下一順位對手沒有會立即絕殺的基礎牌，果斷休整上 3~4 幣搶先絕殺！
+            let restScore = nextOpponentHasLethalBasic ? 14.0 : 26.0;
+            // 若場上已有對手手握 >=3 幣且 >= TARGET_VP - 2 分，必須加速搶直覺
+            if (anyOpponentReadyForDA) restScore += 8.0;
+            return restScore + Math.random() * cfg.NOISE;
+          }
+          // coins <= 1 時給予休整基礎分 3.8
+          if (p.coins <= 1) return cfg.REST_SCORE_LOW_COINS;
+          return cfg.REST_SCORE_WITH_COINS;
+        }
+
+        const t = m.target;
+        const cell = G.thrones[t];
+        const totalCost = m.cost;
+        const coinsAfter = p.coins - totalCost;
+        const willAwaken = (m.type === 'da') || (cell.owner === pid && cell.level === 1);
+        const vpGain = willAwaken ? cfg.CARD_VP[t] : 0;
+        const vpAfter = p.score + vpGain;
+
+        // 1. 立即奪冠斬殺（最高優先）
+        if (vpAfter >= cfg.TARGET_VP) return 1000 + Math.random();
+
+        // 2. 預讀 #3 基礎技立即充能其他我方基礎牌覺醒之勝分（排除自身 #3）
+        let p4ImmediateVP = 0;
+        if (t === 3 && !willAwaken) {
+          const ownBasics = [1, 2, 4, 5, 6].filter(
+            s => G.thrones[s].owner === pid && G.thrones[s].level === 1
+          );
+          if (ownBasics.length > 0) {
+            p4ImmediateVP = Math.max(...ownBasics.map(s => cfg.CARD_VP[s]));
+            if (vpAfter + p4ImmediateVP >= cfg.TARGET_VP) return 980 + Math.random();
+          }
+        }
+
+        // 3. 基礎節奏與階段 4 期望值
+        let score = vpGain * cfg.VP_DIRECT_MULT
+                  + p4ImmediateVP * cfg.VP_C3_COMBO_MULT
+                  + cfg.CARD_VP[t] * cfg.BASE_SLOT_VP_MULT;
+
+        if (p4ImmediateVP === 0) {
+          const p4Val = estimatePhase4ValueV10(pid, t, willAwaken, coinsAfter, vpAfter, cfg);
+          if (p4Val >= 850) return 950 + Math.random(); // 覺醒特權調度 #3 雙覺醒斬殺
+          score += p4Val * cfg.P4_DISCOUNT;
+        }
+
+        // 4. 階段 3 擊退與護盾陷阱評估
+        if (cell.owner !== null && cell.owner !== pid) {
+          const opp = G.players[cell.owner];
+          if (cell.shield) {
+            score -= getShieldPenaltyV10(opp, cfg);
+          }
+          if (cell.level === 1) {
+            score += cfg.CARD_VP[t] * cfg.KNOCK_ENEMY_BASIC_MULT;
+            if (opp.score + cfg.CARD_VP[t] >= cfg.TARGET_VP) {
+              score += cfg.BLOCK_LETHAL_BONUS;
+            } else if (opp.score >= 6) {
+              score += cfg.BLOCK_LEADER_BONUS;
+            }
+          } else {
+            score -= cfg.STD_KB_PENALTY;
+          }
+        }
+
+        // 5. 抑制付費跳 #4 領 +1 幣（淨賺 <= 0 幣）的原地空轉死循環
+        if (t === 4 && totalCost > 0 && !willAwaken) {
+          score -= 3.5; // 避免在 2 幣時陷入「花 1 幣踩 #4 拿 1 幣」的原地死循環
+        }
+
+        // 6. 抑制空盤白燒 3 幣同點直覺 #5（非奪冠且無敵方覺醒牌可觸發【時空扭曲】時扣 -5.0）
+        if (m.type === 'da' && t === 5 && vpAfter < cfg.TARGET_VP && ![1, 2, 3, 4, 6].some(s => G.thrones[s].owner !== null && G.thrones[s].owner !== pid && G.thrones[s].level === 2)) {
+          score -= 5.0;
+        }
+
+        // 7. 扣除稀缺行動幣成本
+        score -= totalCost * cfg.COIN_PENALTY;
+        return score + Math.random() * cfg.NOISE;
+      }
+
+      function aiExecutePhase1() {
+        playerRollFateDie();
+      }
+
+      function aiExecutePhase2() {
+        const p = G.players[G.currentPlayerIdx];
+        const cfg = getAIConfig(p);
+        const moves = getLegalMovesV10(p.id, G.fateDie);
+
+        let bestMove = moves[0];
+        let bestScore = -99999;
+        for (const m of moves) {
+          const sc = scoreMoveV10(p.id, m, cfg);
+          if (sc > bestScore) {
+            bestScore = sc;
+            bestMove = m;
+          }
+        }
+
+        if (!bestMove || bestMove.mode === 'REST') {
+          executePhase2Rest();
+        } else {
+          executePhase2Action(bestMove.W, bestMove.mode);
+        }
+      }
+
+      function aiExecutePhase4() {
+        const p = G.players[G.currentPlayerIdx];
+        const cfg = getAIConfig(p);
+        const { cardNum, finalLevel } = G.commandContext;
+
+        const candidates = [];
+
+        // 1. 免費發動當前牌
+        if (canSkillExecuteForPlayer(cardNum, finalLevel, p)) {
+          const ev = evalAbilityV10(p.id, cardNum, p.coins, p.score, cfg);
+          if (ev.ok && ev.val > 0) {
+            candidates.push({ kind: 'SELF', cardNum, val: ev.val });
+          }
+        }
+
+        // 2. 若為覺醒登頂，免費調度全場任一我方牌
+        if (finalLevel === 2) {
+          getAllyCommandTargets(p.id, cardNum).forEach(al => {
+            if (!canSkillExecuteForPlayer(al.cardNum, al.level, p)) return;
+            const ev = evalAbilityV10(p.id, al.cardNum, p.coins, p.score, cfg);
+            if (ev.ok && ev.val > 0) {
+              candidates.push({ kind: 'ALLY', cardNum: al.cardNum, val: ev.val });
+            }
+          });
+        }
+
+        // 3. 評估 0 幣戰術撤回己方覺醒牌（防 #5 偷幣）
+        const retreatEv = evalRetreatV10_2B(p.id, p.coins, p.score, cfg);
+        if (retreatEv.slot > 0 && retreatEv.val > 0) {
+          candidates.push({ kind: 'RETREAT', slot: retreatEv.slot, val: retreatEv.val });
+        }
+
+        candidates.sort((a, b) => b.val - a.val);
+
+        if (candidates.length === 0) {
+          passPhase4Turn();
+          return;
+        }
+
+        const best = candidates[0];
+        if (best.kind === 'RETREAT') {
+          startPhase4Retreat();
+          scheduleAI(() => handleThroneClick(best.slot), 240);
+          return;
+        }
+
+        if (best.kind === 'SELF') {
+          triggerFreeSelfCommand();
+        } else {
+          triggerAllyCommand(best.cardNum);
+        }
+
+        if (!G.gameOver && G.phase === 4 && G.subState === 'SKILL_TARGET') {
+          scheduleAI(() => aiFinishSkillTarget(), 280);
+        }
+      }
+
+      // 階段 4 目標排序優先序（精準對齊 #1 / #2 / #3 / #5 / #6）
+      function aiFinishSkillTarget() {
+        if (G.gameOver || G.phase !== 4 || G.subState !== 'SKILL_TARGET' || !G.skillContext) return;
+        const p = G.players[G.currentPlayerIdx];
+        const cfg = getAIConfig(p);
+        const ctx = G.skillContext;
+
+        // #1【刺客伏擊】：先踢聽牌格 ➔ 避開餵錢護盾 ➔ 領先者 ➔ 高分卡
+        if (ctx.type === 'ASSASSIN_KNOCK') {
+          const sorted = [...ctx.validThrones].sort((a, b) => {
+            const oppA = G.players[G.thrones[a].owner];
+            const oppB = G.players[G.thrones[b].owner];
+            const lethalA = (oppA.score + cfg.CARD_VP[a] >= cfg.TARGET_VP) ? 1 : 0;
+            const lethalB = (oppB.score + cfg.CARD_VP[b] >= cfg.TARGET_VP) ? 1 : 0;
+            if (lethalA !== lethalB) return lethalB - lethalA;
+            const penA = G.thrones[a].shield ? getShieldPenaltyV10(oppA, cfg) : 0;
+            const penB = G.thrones[b].shield ? getShieldPenaltyV10(oppB, cfg) : 0;
+            if (penA !== penB) return penA - penB;
+            return (oppB.score - oppA.score) || (cfg.CARD_VP[b] - cfg.CARD_VP[a]);
+          });
+          handleThroneClick(sorted[0]);
+          return;
+        }
+
+        // #2【堅定護航】：優先掛我方基礎牌（保其下回合覺醒），其次掛勝分較高之我方覺醒牌
+        if (ctx.type === 'SHIELD_GUARD') {
+          const sorted = [...ctx.validThrones].sort((a, b) => {
+            const lvlA = G.thrones[a].level;
+            const lvlB = G.thrones[b].level;
+            if (lvlA !== lvlB) return lvlA - lvlB;
+            return cfg.CARD_VP[b] - cfg.CARD_VP[a];
+          });
+          handleThroneClick(sorted[0]);
+          return;
+        }
+
+        // #3【奧術 / 神聖召喚】：無條件優先選勝分最高之我方其他基礎牌
+        if (ctx.type === 'SUMMON_AWAKEN') {
+          const sorted = [...ctx.validThrones].sort((a, b) => cfg.CARD_VP[b] - cfg.CARD_VP[a]);
+          handleThroneClick(sorted[0]);
+          return;
+        }
+
+        // #5【時空扭曲】：依 evalCard5TargetV10 綜合排序（先奪聽牌 3 幣、避護盾、搶高分格）
+        if (ctx.type === 'WARP_SEIZE') {
+          const sorted = [...ctx.validThrones].sort((a, b) => {
+            const va = evalCard5TargetV10(p.id, a, p.coins, cfg);
+            const vb = evalCard5TargetV10(p.id, b, p.coins, cfg);
+            return vb - va;
+          });
+          handleThroneClick(sorted[0]);
+          return;
+        }
+
+        // #6【先鋒增援】：偏好順位固定 #4 > #1 > #2 > #3 > #5
+        if (ctx.type === 'CAVALRY_ADVANCE') {
+          const priority = [4, 1, 2, 3, 5];
+          const chosen = priority.find(c => ctx.validThrones.includes(c)) || ctx.validThrones[0];
+          handleThroneClick(chosen);
+          return;
+        }
+
+        if (ctx.validThrones && ctx.validThrones.length > 0) {
+          handleThroneClick(ctx.validThrones[0]);
+          return;
+        }
+        endTurn();
+      }
+
+      // ============================================================================
+      // 視覺渲染引擎
+      // ============================================================================
+      function renderAll() {
+        if (!G.players || G.players.length === 0) return;
+        const cp = G.players[G.currentPlayerIdx];
+
+        // 1. 頂部狀態橫幅
+        document.getElementById('ribbon-round').textContent = G.round;
+        const activeEl = document.getElementById('ribbon-active-player');
+        activeEl.textContent = `${cp.seatTag} ${cp.name}`;
+        activeEl.className = `px-2.5 py-0.5 rounded-md font-black text-white ${cp.theme.badgeBg}`;
+
+        const phaseLabels = {
+          1: '階段 1：擲天命骰',
+          2: `階段 2：順應天命 (0幣) / 意志調度 (1~3幣) / 休整 (+${REST_GAIN}幣)`,
+          3: '階段 3：移動、同點直覺與 0 幣擊退／單倍護盾撫卹結算',
+          4: (G.commandContext && G.commandContext.finalLevel === 2)
+            ? '階段 4（覺醒特權）：免費發動我方全場任一卡牌、0 幣撤回覺醒牌或結束回合'
+            : '階段 4：免費發動當前卡牌權能、0 幣撤回覺醒牌或結束回合'
+        };
+        document.getElementById('ribbon-phase-badge').textContent = G.gameOver ? '🏆 對局已結束' : (phaseLabels[G.phase] || '');
+        document.getElementById('ribbon-target-vp').textContent = lobbyConfig.targetVP;
+        document.getElementById('ribbon-direct-count').textContent = T.phase2Choices.freeDirectPush_0coin;
+        document.getElementById('ribbon-c5steal-count').textContent = T.coinSources.card5Steal;
+        document.getElementById('ribbon-dial-rate').textContent = T.totalTurns > 0 ? (T.dialTouches / T.totalTurns).toFixed(2) : '0.00';
+        document.getElementById('supply-shield').textContent = G.supply.shield;
+
+        // 2. 參戰玩家橫向卡片列
+        const pRow = document.getElementById('arena-players-row');
+        pRow.innerHTML = G.players.map((pl, idx) => {
+          const isTurn = idx === G.currentPlayerIdx && !G.gameOver;
+          const borderCls = isTurn ? `border-2 ${pl.theme.border} bg-[#151c2e] shadow-lg` : 'border border-slate-800/90 bg-[#111624] opacity-90';
+          const miniCards = [1, 2, 3, 4, 5, 6].map(c => {
+            const onThrone = G.thrones[c].owner === pl.id;
+            return `<span class="w-5 h-5 rounded text-[10px] font-bold flex items-center justify-center border ${
+              onThrone
+                ? 'bg-slate-900/40 text-slate-600 border-slate-800/60'
+                : 'bg-slate-800 text-slate-200 border-slate-700'
+            }" title="${onThrone ? `#${c} 已在王座區` : `#${c} 在個人陣地`}">${c}</span>`;
+          }).join('');
+
+          const aiBadge = pl.type === 'AI'
+            ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-bold ${pl.difficulty === 'CASUAL' ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/60' : 'bg-rose-950 text-rose-300 border border-rose-700/60'}">${pl.difficulty === 'CASUAL' ? 'AI休閒' : 'AI高手'}</span>`
+            : '';
+
+          return `
+            <div class="rounded-xl p-3 transition flex flex-col justify-between gap-2 ${borderCls}">
+              <div class="flex items-center justify-between gap-1 flex-wrap">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded text-[11px] font-black text-white ${pl.theme.badgeBg}">${pl.seatTag}</span>
+                  <span class="font-black text-xs sm:text-sm text-white truncate">${pl.name}</span>
+                  ${aiBadge}
+                </div>
+                <div class="flex items-center gap-1">
+                  ${pl.coins === 0 ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">0幣順天/休整</span>` : ''}
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between pt-1">
+                <div class="flex items-center gap-3 text-xs font-black">
+                  <span class="text-amber-400">⭐ ${pl.score}/${lobbyConfig.targetVP}分</span>
+                  <span class="text-yellow-300">🪙 ${pl.coins}/${lobbyConfig.maxCoins}幣</span>
+                </div>
+                <div class="flex items-center gap-1">${miniCards}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        renderThroneTracks();
+        renderActionBox();
+        renderHandZone();
+      }
+
+      function renderThroneTracks() {
+        const grid = document.getElementById('throne-tracks-grid');
+        const hintEl = document.getElementById('throne-zone-hint');
+        const isTargetingThrone = G.phase === 4 && G.subState === 'SKILL_TARGET' && G.skillContext && G.skillContext.validThrones;
+        hintEl.textContent = isTargetingThrone ? G.skillContext.title : '';
+
+        let html = '';
+        for (let c = 1; c <= 6; c++) {
+          const spec = CARD_SPECS[c];
+          const slot = G.thrones[c];
+          const ownerP = slot.owner !== null ? G.players[slot.owner] : null;
+          const isSelectable = isTargetingThrone && G.skillContext.validThrones.includes(c);
+          const isBlockedTarget = isTargetingThrone && !isSelectable;
+
+          const isAwakened = ownerP && slot.level === 2;
+          const isBaseOccupied = ownerP && slot.level === 1;
+
+          let ownerBadge = `<span class="text-[11px] text-slate-500 font-bold">空位</span>`;
+          if (ownerP) {
+            ownerBadge = `
+              <div class="flex items-center gap-1">
+                ${slot.shield ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-sky-500/20 text-sky-300 border border-sky-400/60" title="遭敵擊退或敵方技能退回時，防守方領 +1 幣護盾撫卹">🛡️護盾</span>` : ''}
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-black text-white ${ownerP.theme.badgeBg}">
+                  ${ownerP.seatTag} 佔領
+                </span>
+              </div>
+            `;
+          }
+
+          const tier2Cls = isAwakened
+            ? 'awakened-glow rounded-xl p-2.5 transition relative'
+            : 'bg-[#0b0e17]/80 border border-slate-800/80 rounded-xl p-2.5 opacity-55 transition';
+
+          const tier1Cls = isBaseOccupied
+            ? `base-occupied-glow ${ownerP.theme.border} rounded-xl p-2.5 shadow-md transition`
+            : (isAwakened
+              ? 'bg-[#0b0e17]/60 border border-slate-800/60 rounded-xl p-2.5 opacity-50 transition'
+              : 'bg-[#0b0e17]/80 border border-slate-800/80 rounded-xl p-2.5 opacity-55 transition');
+
+          const clickAttr = isSelectable ? `onclick="App.handleThroneClick(${c})"` : '';
+          const stateCls = isSelectable ? 'target-selectable' : (isBlockedTarget ? 'opacity-60 cursor-not-allowed' : '');
+
+          html += `
+            <div ${clickAttr} class="bg-[#0d121f] border border-slate-800/90 rounded-2xl p-2.5 flex flex-col justify-between gap-2 transition ${stateCls}">
+              <div class="flex items-center justify-between border-b border-slate-800/80 pb-1.5 px-0.5">
+                <span class="text-xs font-black text-white">#${c} 王座軌道</span>
+                ${ownerBadge}
+              </div>
+
+              <!-- 第二層：覺醒牌 -->
+              <div class="${tier2Cls} flex flex-col justify-between min-h-[122px]">
+                <div>
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="text-[11px] font-black ${isAwakened ? 'text-amber-300' : 'text-amber-500/80'}">
+                      ★ 第二層 ｜ ${spec.awkName}
+                    </span>
+                    <span class="px-1.5 py-0.5 rounded-md text-[10px] font-black ${isAwakened ? 'bg-amber-400 text-slate-950' : 'bg-amber-950/60 text-amber-400 border border-amber-700/40'}">
+                      🏆 +${spec.points}分
+                    </span>
+                  </div>
+                  <p class="text-[11px] ${isAwakened ? 'text-white font-semibold' : 'text-slate-400'} mt-1.5 leading-snug">
+                    【${spec.awkTitle}】${spec.awkDesc}
+                  </p>
+                </div>
+                <div class="text-right mt-2">
+                  <span class="text-[10px] ${isAwakened ? 'text-amber-200 font-bold' : 'text-slate-600'}">
+                    ${isAwakened ? '⚡ 正反同效・在場覺醒' : '正反同效 6 技能'}
+                  </span>
+                </div>
+              </div>
+
+              <div class="text-center text-[10px] font-bold py-0.5 rounded ${
+                isAwakened ? 'text-amber-300 bg-amber-500/15' : 'text-slate-500'
+              }">
+                ${isAwakened ? '^ 已登頂第二層覺醒 ^' : '^ 推入第一層 ➔ 晉升第二層 ^'}
+              </div>
+
+              <!-- 第一層：基礎牌 -->
+              <div class="${tier1Cls} flex flex-col justify-between min-h-[98px]">
+                <div class="flex items-center justify-between gap-1">
+                  <span class="text-[11px] font-black ${isBaseOccupied ? 'text-sky-300' : 'text-slate-400'}">
+                    ● 第一層 ｜ ${spec.baseName}
+                  </span>
+                  <span class="text-[10px] font-bold ${isBaseOccupied ? 'text-emerald-400' : 'text-slate-500'}">
+                    ${isAwakened ? '✓已晉升' : (isBaseOccupied ? '📍佔領中' : '')}
+                  </span>
+                </div>
+                <p class="text-[11px] ${isBaseOccupied ? 'text-slate-200' : 'text-slate-400'} mt-1 leading-snug">
+                  【${spec.baseTitle}】${spec.baseDesc}
+                </p>
+              </div>
+            </div>
+          `;
+        }
+        grid.innerHTML = html;
+      }
+
+      // 渲染左下互動操作艙
+      function renderActionBox() {
+        const box = document.getElementById('arena-action-box');
+        if (G.gameOver) {
+          const dialPerTurn = T.totalTurns > 0 ? (T.dialTouches / T.totalTurns).toFixed(2) : '0.00';
+          const totalIns = T.tokenStats.shieldInsuranceByClash + T.tokenStats.shieldInsuranceBySkill;
+          box.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div class="text-xs font-bold text-amber-400 uppercase">V10.3_SA VICTORY RESOLUTION</div>
+                <div class="text-lg font-black text-white mt-0.5">
+                  🏆 ${G.winner.seatTag} [${G.winner.name}] 以 ${G.winner.score} 分奪得王座勝利！
+                </div>
+                <div class="text-[11px] text-slate-400 mt-0.5">
+                  總輪數 ${G.round} 輪 ‧ 順應天命 ${T.phase2Choices.freeDirectPush_0coin} 次 ‧ 撥盤 ${dialPerTurn} 次/回合 ‧ 護盾撫卹 ${totalIns} 次(+${T.coinSources.shieldInsurance}幣) ‧ #5搶幣 ${T.coinSources.card5Steal} 幣 ‧ 戰術撤回 ${T.phase4CommandChoices.fallbackRetreat0Coin} 次
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="App.switchMainTab('TELEMETRY')" class="px-4 py-2.5 rounded-xl font-black text-xs bg-indigo-600 hover:bg-indigo-500 text-white transition">
+                  📊 檢視並匯出本局戰報
+                </button>
+                <button onclick="App.launchSeatResolutionModal()" class="px-4 py-2.5 rounded-xl font-black text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition">
+                  🔄 再來一局 (重新決議)
+                </button>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        const p = G.players[G.currentPlayerIdx];
+
+        // 階段 1：固定擲 1 顆天命骰
+        if (G.phase === 1 && G.subState === 'NEED_FATE_ROLL') {
+          box.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-4 px-2">
+              <div class="flex items-center gap-3">
+                <span class="text-2xl">🎲</span>
+                <div>
+                  <div class="text-sm font-bold text-slate-200">
+                    【階段 1】輪到 ${p.seatTag} [${p.name}] 投擲天命骰
+                  </div>
+                  <div class="text-xs mt-1">
+                    ${p.coins === 0
+                      ? `<span class="text-emerald-300 font-bold">🎲 當前 0 幣：擲出後可選 0 幣【順應天命】直推 #D（可 0 幣擊退敵覺醒），或戰術休整領 +${REST_GAIN} 幣</span>`
+                      : '<span class="text-[11px] text-slate-400">免費投擲 1 顆六面骰產出天命點數 D，階段 2 可選 0 幣順應天命直推或付費意志調度</span>'
+                    }
+                  </div>
+                </div>
+              </div>
+              <button onclick="App.playerRollFateDie()" class="px-6 py-3 rounded-xl font-black text-sm bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 shadow-lg shadow-amber-500/25 transition flex items-center gap-2">
+                <span>🎲</span> 擲出天命骰
+              </button>
+            </div>
+          `;
+          return;
+        }
+
+        // 階段 2：V10.3_SA 全體通用五選一（0幣直推 #D ＋ 意志骰 W=1~6 ＋ 休整 +2 幣[滿上限禁休整]）
+        if (G.phase === 2 && G.subState === 'NORMAL_WILL_SELECT') {
+          const D = G.fateDie;
+          const directAct = getFreeDirectAction(p, D);
+          const canRest = !(p.coins >= lobbyConfig.maxCoins && hasAnyLegalPush(p, D));
+          let activeW = G.selectedWillDie;
+          if (!activeW) {
+            for (let w = 1; w <= 6; w++) {
+              const acts = getWillDieActions(p, D, w);
+              if (acts.some(a => a.canAfford)) { activeW = w; break; }
+            }
+          }
+          const activeActions = activeW ? getWillDieActions(p, D, activeW) : [];
+
+          box.innerHTML = `
+            <div class="space-y-2.5">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-2.5">
+                  <!-- 最左側顯眼的 0 幣【順應天命】直推 #D 按鈕 -->
+                  <button onclick="App.executePhase2Action(0, 'FREE_DIRECT')" ${directAct.canAfford ? '' : 'disabled'} class="px-3.5 py-2 rounded-xl font-black text-xs border transition flex flex-col items-start min-w-[148px] ${
+                    directAct.canAfford
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 border-emerald-300 shadow-lg shadow-emerald-500/20'
+                      : 'bg-slate-900 text-slate-500 border-slate-800 cursor-not-allowed'
+                  }">
+                    <span>🎲 0幣【順應天命】直推 #${D}</span>
+                    <span class="text-[10px] font-bold ${directAct.canAfford ? 'text-slate-900/90' : 'text-rose-400/80'}">
+                      ${directAct.canAfford ? (directAct.isEnemyAwk ? '0幣擊退敵覺醒・進階段4' : '免算術・100%進階段4') : directAct.disabledReason}
+                    </span>
+                  </button>
+
+                  <div class="flex flex-col items-center">
+                    <span class="text-[9px] text-amber-400 font-bold mb-0.5">天命骰 D</span>
+                    <div class="w-10 h-10 rounded-xl dice-face border border-amber-500/60 flex items-center justify-center text-lg font-black text-amber-400">${D}</div>
+                  </div>
+                  <div class="text-slate-500 font-black text-base">+/-</div>
+                  <div>
+                    <div class="text-[10px] text-sky-300 font-bold mb-1">或手選意志骰 W（餘額 🪙${p.coins}/${lobbyConfig.maxCoins}幣；1~3點 1幣 / 4~6點 2幣 / 同點直覺 3幣）：</div>
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      ${[1, 2, 3, 4, 5, 6].map(w => {
+                        const cost = getWillDieCost(D, w);
+                        const acts = getWillDieActions(p, D, w);
+                        const playable = acts.some(a => a.canAfford);
+                        const isSel = activeW === w && playable;
+                        const isSame = w === D;
+                        const isOwnOnD = isSame && G.thrones[D].owner === p.id;
+                        const isFilteredSameAsD = !isSame && getValidArithTargets(D, w).length === 0 && Math.abs(D - w) === D;
+                        let btnTitle = '';
+                        if (isOwnOnD) {
+                          btnTitle = `#${D} 為我方在場卡牌，禁止發動 3 幣同點直覺（己方基礎牌請直接用 0 幣順應天命）`;
+                        } else if (!isSame && acts.length === 0) {
+                          btnTitle = isFilteredSameAsD
+                            ? `|${D}-${w}|=${D} 與 0 幣【順應天命】相同，已自動防呆鎖定`
+                            : '無合法可推進目標';
+                        } else if (!playable) {
+                          btnTitle = acts.length === 0 ? '無合法可推進目標' : '軍費不足';
+                        }
+                        return `
+                          <button onclick="App.selectWillDieUI(${w})" ${!playable ? 'disabled' : ''} title="${btnTitle}" class="px-2.5 py-1.5 rounded-lg text-xs font-black border transition flex flex-col items-center min-w-[52px] ${
+                            isSel
+                              ? 'bg-amber-500 text-slate-950 border-amber-300 shadow-md'
+                              : (playable
+                                ? (isSame ? 'bg-purple-950/90 text-purple-200 border-purple-500/60 hover:bg-purple-900' : 'bg-slate-800 text-white border-slate-700 hover:border-sky-400')
+                                : 'bg-slate-900/60 text-slate-600 border-slate-800 cursor-not-allowed')
+                          }">
+                            <span>${isSame ? `⚡W=${w}` : `W=${w}`}</span>
+                            <span class="text-[9px] font-bold ${isSel ? 'text-slate-900' : (isSame ? 'text-amber-300' : 'text-slate-400')}">
+                              ${acts.length === 0 ? (isOwnOnD ? '己方禁用' : (isFilteredSameAsD ? '防呆鎖定' : '無目標')) : (!playable ? '幣不足' : (isSame ? '3幣直覺' : `${cost}幣`))}
+                            </span>
+                          </button>
+                        `;
+                      }).join('')}
+                    </div>
+                  </div>
+                </div>
+
+                <button onclick="App.executePhase2Rest()" ${canRest ? '' : 'disabled'} title="${canRest ? `放棄出牌，領取 +${REST_GAIN} 幣並結束回合` : `滿 ${lobbyConfig.maxCoins} 幣且尚有合法推牌時禁止休整`}" class="px-4 py-2.5 rounded-xl font-black text-xs transition ${
+                  canRest
+                    ? 'bg-emerald-700 hover:bg-emerald-600 text-white shadow'
+                    : 'bg-slate-900 text-slate-600 border border-slate-800 cursor-not-allowed'
+                }">
+                  ${canRest ? `🪙 戰術休整 (+${REST_GAIN}幣)` : `🚫 滿${lobbyConfig.maxCoins}幣禁休整`}
+                </button>
+              </div>
+
+              <!-- 當前選中意志骰對應的可執行動作 -->
+              <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80">
+                ${activeActions.length > 0 && p.coins > 0
+                  ? activeActions.map(act => `
+                      <button onclick="App.executePhase2Action(${act.willDie}, '${act.mode}')" ${act.canAfford ? '' : 'disabled'} class="px-3.5 py-2 rounded-xl font-black text-xs transition ${
+                        !act.canAfford
+                          ? 'bg-slate-900 text-slate-600 border border-slate-800 cursor-not-allowed'
+                          : (act.mode === 'DIRECT_AWAKEN'
+                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow'
+                            : 'bg-sky-600 hover:bg-sky-500 text-white shadow')
+                      }">
+                        ${act.label}${!act.canAfford ? ' (軍費不足)' : ''}
+                      </button>
+                    `).join('')
+                  : `<span class="text-xs text-slate-400">請直接點擊左側「0幣【順應天命】直推 #${D}」、選擇上方可用意志骰，或點擊右側「戰術休整 (+${REST_GAIN}幣)」。</span>`
+                }
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        // 階段 4：王座權能宣告（全面零付費 + 零保底 + 0 幣戰術撤回防#5 + 單次權能鐵律）
+        if (G.phase === 4 && G.subState === 'COMMAND_CHOICE' && G.commandContext) {
+          const { cardNum, finalLevel } = G.commandContext;
+          const spec = CARD_SPECS[cardNum];
+          const isCurrentCardAwakened = (finalLevel === 2);
+          const canCommandAllies = isCurrentCardAwakened;
+          const allies = canCommandAllies ? getAllyCommandTargets(p.id, cardNum) : [];
+          const myAwk = getMyAwakenedCards(p.id);
+          const selfExecutable = canSkillExecuteForPlayer(cardNum, finalLevel, p);
+
+          const headerTitle = isCurrentCardAwakened
+            ? '👑 階段 4（覺醒特權）：免費發動我方全場任一卡牌、0 幣撤回覺醒牌或結束回合'
+            : '⚡ 階段 4：發動卡牌權能（0 幣）、0 幣撤回覺醒牌或直接結束回合';
+          const headerBadgeCls = isCurrentCardAwakened
+            ? 'bg-amber-500/15 border border-amber-400/50 text-amber-300'
+            : 'bg-sky-950/60 border border-sky-500/40 text-sky-300';
+
+          box.innerHTML = `
+            <div class="space-y-2.5">
+              <div class="bg-[#0b0e17] border border-slate-700/80 rounded-lg px-2.5 py-1 text-[11px] text-slate-300 flex items-center gap-1.5">
+                <span class="text-amber-400 font-black">⚖️【單次權能鐵律】</span>
+                <span>全 6 卡正反同效；每回合限發動 1 次卡牌能力，放棄發技時可 0 幣撤回己方覺醒牌（防 #5 偷幣）</span>
+              </div>
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="px-2.5 py-1 rounded-lg text-xs font-black ${headerBadgeCls}">
+                  ${headerTitle}
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <button onclick="App.startPhase4Retreat()" ${myAwk.length > 0 ? '' : 'disabled'} title="${myAwk.length > 0 ? '放棄發動技能，將王座區我方任 1 張覺醒牌退回陣地（保留勝分，帶盾歸還公區不領撫卹）' : '場上目前無己方已覺醒牌可撤回'}" class="px-3 py-1.5 rounded-lg text-xs font-black border transition ${
+                    myAwk.length > 0
+                      ? 'bg-rose-950/90 hover:bg-rose-800 text-rose-200 border-rose-500/60 shadow'
+                      : 'bg-slate-900 text-slate-600 border-slate-800 cursor-not-allowed'
+                  }">
+                    🏳️ 0 幣撤回己方覺醒牌（防 #5）${myAwk.length > 0 ? ` [${myAwk.length}]` : ''}
+                  </button>
+                  <button onclick="App.passPhase4Turn()" class="px-3.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-black text-white shadow transition">
+                    ⏭️ 直接結束回合
+                  </button>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button onclick="App.triggerFreeSelfCommand()" ${selfExecutable ? '' : 'disabled'} class="px-4 py-2 rounded-xl font-black text-xs transition ${
+                  selfExecutable
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow'
+                    : 'bg-slate-900 text-slate-600 border border-slate-800 cursor-not-allowed'
+                }">
+                  ⚡ 免費發動當前 #${cardNum}【${finalLevel === 2 ? spec.awkTitle : spec.baseTitle}】${selfExecutable ? '' : ' (無合法目標)'}
+                </button>
+                ${canCommandAllies ? allies.map(al => {
+                  const alSpec = CARD_SPECS[al.cardNum];
+                  const alExec = canSkillExecuteForPlayer(al.cardNum, al.level, p);
+                  return `
+                    <button onclick="App.triggerAllyCommand(${al.cardNum})" ${alExec ? '' : 'disabled'} class="px-3.5 py-2 rounded-xl font-bold text-xs border transition ${
+                      alExec ? 'bg-indigo-950/90 hover:bg-indigo-800 text-indigo-200 border-indigo-500/60 shadow' : 'bg-slate-900 text-slate-600 border-slate-800 cursor-not-allowed'
+                    }">
+                      ⚡ 免費調度 #${al.cardNum}【${al.level === 2 ? alSpec.awkTitle : alSpec.baseTitle}】${!alExec ? ' (無合法目標)' : ''}
+                    </button>
+                  `;
+                }).join('') : ''}
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        // 階段 4：技能目標選擇子狀態
+        if (G.phase === 4 && G.subState === 'SKILL_TARGET' && G.skillContext) {
+          const ctx = G.skillContext;
+          let extraBtns = '';
+
+          if (ctx.type === 'WARP_SEIZE') {
+            extraBtns = ctx.validThrones.map(c => {
+              const defP = G.players[G.thrones[c].owner];
+              const shTxt = G.thrones[c].shield ? ' (帶🛡️盾)' : '';
+              const coinTxt = defP.coins > 0 ? '搶1幣' : '0幣';
+              return `
+                <button onclick="App.handleThroneClick(${c})" class="px-3.5 py-1.5 rounded-xl font-black text-xs bg-purple-600 hover:bg-purple-500 text-white shadow">
+                  🌀 奪 ${defP.seatTag}(${coinTxt}) 並踢 #${c} 覺醒搶佔${shTxt}
+                </button>
+              `;
+            }).join('');
+          }
+
+          if (ctx.type === 'CAVALRY_ADVANCE') {
+            extraBtns = ctx.validThrones.map(c => `
+              <button onclick="App.handleThroneClick(${c})" class="px-3.5 py-1.5 rounded-xl font-black text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow">
+                🐎 先鋒增援進駐空格 #${c} ${CARD_SPECS[c].baseName}
+              </button>
+            `).join('');
+          }
+
+          if (ctx.type === 'P4_RETREAT_AWAKENED') {
+            extraBtns = ctx.validThrones.map(c => {
+              const shTxt = G.thrones[c].shield ? ' (🛡️盾歸還公區不領撫卹)' : '';
+              return `
+                <button onclick="App.handleThroneClick(${c})" class="px-3.5 py-1.5 rounded-xl font-black text-xs bg-rose-700 hover:bg-rose-600 text-white shadow">
+                  🏳️ 撤回 #${c} ${CARD_SPECS[c].awkName}${shTxt}
+                </button>
+              `;
+            }).join('') + `
+              <button onclick="App.cancelSkillTarget()" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
+                ↩ 返回重選
+              </button>
+            `;
+          }
+
+          box.innerHTML = `
+            <div class="space-y-2">
+              <div class="text-xs font-black text-sky-300">${ctx.title}</div>
+              <div class="flex flex-wrap items-center gap-2">
+                ${extraBtns || `<span class="text-xs text-amber-300 animate-pulse">👆 請直接點擊上方中央王座區發光高亮的目標軌道！</span>`}
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      // 渲染左下個人陣地手牌區 1~6
+      function renderHandZone() {
+        const p = G.players[G.currentPlayerIdx];
+        document.getElementById('hand-zone-title').textContent = `${p.seatTag} [${p.name}] 的個人陣地 (手牌區 1~6)`;
+
+        const quickMap = {};
+        if (!G.gameOver && G.phase === 2 && G.subState === 'NORMAL_WILL_SELECT') {
+          const directAct = getFreeDirectAction(p, G.fateDie);
+          if (directAct.canAfford) {
+            quickMap[directAct.target] = directAct;
+          }
+          const candidateWs = G.selectedWillDie ? [G.selectedWillDie] : [1, 2, 3, 4, 5, 6];
+          candidateWs.forEach(w => {
+            getWillDieActions(p, G.fateDie, w).forEach(act => {
+              if (!act.canAfford) return;
+              const prev = quickMap[act.target];
+              if (!prev || act.cost < prev.cost || (act.mode === 'DIRECT_AWAKEN' && G.selectedWillDie === w)) {
+                quickMap[act.target] = act;
+              }
+            });
+          });
+        }
+
+        const grid = document.getElementById('hand-cards-grid');
+        let html = '';
+        for (let c = 1; c <= 6; c++) {
+          const spec = CARD_SPECS[c];
+          const slot = G.thrones[c];
+          const inMyThrone = slot.owner === p.id;
+          const qAct = quickMap[c];
+
+          let statusBtn = `<div class="w-full py-1.5 rounded-lg bg-[#161d2f] text-slate-400 text-[11px] font-bold text-center">個人陣地待命</div>`;
+          if (inMyThrone && slot.level === 2) {
+            statusBtn = `<div class="w-full py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-black text-center">★ 已登頂覺醒</div>`;
+          } else if (inMyThrone && slot.level === 1) {
+            statusBtn = `<div class="w-full py-1.5 rounded-lg bg-sky-500/15 text-sky-300 border border-sky-500/30 text-[11px] font-bold text-center">📍 已進駐第一層</div>`;
+          }
+
+          if (qAct) {
+            const btnStyle = qAct.mode === 'DIRECT_AWAKEN'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950'
+              : (qAct.mode === 'FREE_DIRECT'
+                ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
+                : 'bg-sky-600 hover:bg-sky-500 text-white');
+            const labelTxt = qAct.mode === 'DIRECT_AWAKEN'
+              ? `⚡ 直覺 #${c} (${qAct.cost}幣)`
+              : (qAct.mode === 'FREE_DIRECT'
+                ? (inMyThrone ? `🎲 順天覺醒 #${c} (0幣)` : `🎲 順天直推 #${c} (0幣)`)
+                : (inMyThrone ? `🌟 覺醒 #${c} (${qAct.cost}幣)` : `🚀 推入 #${c} (${qAct.cost}幣)`));
+            statusBtn = `
+              <button onclick="App.executePhase2Action(${qAct.willDie}, '${qAct.mode}')" class="w-full py-1.5 rounded-lg ${btnStyle} text-[11px] font-black text-center shadow transition">
+                ${labelTxt}
+              </button>
+            `;
+          }
+
+          html += `
+            <div class="bg-[#0b0e17] border ${qAct ? (qAct.mode === 'DIRECT_AWAKEN' ? 'border-amber-400 shadow-md shadow-amber-500/15' : (qAct.mode === 'FREE_DIRECT' ? 'border-emerald-400 shadow-md shadow-emerald-500/15' : 'border-sky-400/80')) : 'border-slate-800/90'} rounded-xl p-2.5 flex flex-col justify-between gap-2 ${inMyThrone && !qAct ? 'opacity-65' : ''}">
+              <div>
+                <div class="flex items-start justify-between gap-1">
+                  <span class="text-xs font-black text-white leading-tight">#${c} ${spec.baseName}</span>
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-950/80 text-amber-400 border border-amber-700/40 shrink-0">
+                    🏆+${spec.points}分
+                  </span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1.5 leading-snug">
+                  【${spec.baseTitle}】${spec.baseDesc}
+                </p>
+              </div>
+              ${statusBtn}
+            </div>
+          `;
+        }
+        grid.innerHTML = html;
+      }
+
+      function logEvent(msg) {
+        const tag = `[R${G.round || 1}-T${T.totalTurns || 0}]`;
+        T.logs.push(`${tag} ${msg}`);
+        const listEl = document.getElementById('battle-log-list');
+        if (!listEl) return;
+
+        const item = document.createElement('div');
+        item.className = 'bg-[#0b0e17] border border-slate-800/90 rounded-xl px-3 py-2 text-xs text-slate-200 leading-relaxed shadow-sm';
+        item.textContent = msg;
+        listEl.prepend(item);
+      }
+
+      function clearLogs() {
+        const listEl = document.getElementById('battle-log-list');
+        if (listEl) listEl.innerHTML = '';
+      }
+
+      // ============================================================================
+      // 沙盒除錯與全 AI 高速模擬控制
+      // ============================================================================
+      function toggleAutoPlay() {
+        autoPlayMode = !autoPlayMode;
+        const btn = document.getElementById('btn-auto-ai');
+        if (btn) {
+          btn.textContent = `⚡ 全AI高速對戰: ${autoPlayMode ? '開' : '關'}`;
+          btn.className = autoPlayMode
+            ? 'px-2.5 py-1 rounded-lg font-black bg-amber-500 text-slate-950 border border-amber-400 transition'
+            : 'px-2.5 py-1 rounded-lg font-bold bg-emerald-950/90 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/70 transition';
+        }
+        if (autoPlayMode && !G.gameOver) {
+          if (G.phase === 1 && G.subState === 'NEED_FATE_ROLL') {
+            scheduleAI(() => aiExecutePhase1(), 85);
+          } else if (G.phase === 2 && G.subState === 'NORMAL_WILL_SELECT') {
+            scheduleAI(() => aiExecutePhase2(), 85);
+          } else if (G.phase === 4 && G.subState === 'COMMAND_CHOICE') {
+            scheduleAI(() => aiExecutePhase4(), 85);
+          } else if (G.phase === 4 && G.subState === 'SKILL_TARGET') {
+            scheduleAI(() => aiFinishSkillTarget(), 85);
+          }
+        }
+      }
+
+      function toggleSandboxBar() {
+        const el = document.getElementById('sandbox-bar');
+        if (el) el.classList.toggle('hidden');
+      }
+
+      function sandboxSetFateDie() {
+        const d = parseInt(document.getElementById('sb-fate').value, 10) || 6;
+        G.fateDie = d;
+        logEvent(`🛠️ [SANDBOX] 強制指定天命骰 D = [${d}] 並進入階段 2`);
+        enterPhase2();
+      }
+
+      function sandboxModCoin(delta) {
+        const p = G.players[G.currentPlayerIdx];
+        const before = p.coins;
+        p.coins = Math.max(0, Math.min(lobbyConfig.maxCoins, p.coins + delta));
+        const diff = p.coins - before;
+        // 同步調整初始帳面以利沙盒手動測試不破壞守恆檢查
+        T.coinSources.initial += diff;
+        logEvent(`🛠️ [SANDBOX] 調整 ${p.seatTag} 行動幣為 ${p.coins}/${lobbyConfig.maxCoins} 幣`);
+        renderAll();
+      }
+
+      function sandboxSetZeroCoin() {
+        const p = G.players[G.currentPlayerIdx];
+        const diff = -p.coins;
+        p.coins = 0;
+        T.coinSources.initial += diff;
+        logEvent(`🛠️ [SANDBOX] 將 ${p.seatTag} 行動幣歸 0（測試 0 幣順應天命直推 / 戰術休整）`);
+        renderAll();
+      }
+
+      function sandboxAllShields() {
+        for (let c = 1; c <= 6; c++) {
+          if (G.thrones[c].owner !== null && !G.thrones[c].shield && G.supply.shield > 0) {
+            G.thrones[c].shield = true;
+            G.supply.shield = Math.max(0, G.supply.shield - 1);
+          }
+        }
+        logEvent(`🛠️ [SANDBOX] 為王座區所有在場無盾卡牌掛載【🛡️護盾】`);
+        renderAll();
+      }
+
+      function sandboxInstantWin() {
+        const p = G.players[G.currentPlayerIdx];
+        p.score = lobbyConfig.targetVP;
+        G.gameOver = true;
+        G.winner = p;
+        T.winnerId = p.id;
+        T.durationSec = Math.max(1, Math.round((Date.now() - G.startTimeMs) / 1000));
+        clearAITimers();
+        logEvent(`🛠️🏆 [SANDBOX] 觸發 ${p.seatTag} 立即達標獲勝結算！`);
+        renderAll();
+      }
+
+      // ============================================================================
+      // V10.3_SA 遙測戰報生成器 (.md / .txt) 含每回合平均撥盤次數、戰術撤回與 100% 金幣守恆驗算
+      // ============================================================================
+      function generateMarkdownReport() {
+        const duration = T.durationSec || Math.max(1, Math.round((Date.now() - G.startTimeMs) / 1000));
+        let totalPushed = 0, totalAwk = 0, totalScore = 0;
+        for (let c = 1; c <= 6; c++) {
+          totalPushed += T.cards[c].pushed;
+          totalAwk += T.cards[c].awakened;
+          totalScore += T.cards[c].pointsScored;
+        }
+        const awkRate = totalPushed > 0 ? ((totalAwk / totalPushed) * 100).toFixed(1) : '0.0';
+        const zeroCoinRate = T.totalTurns > 0 ? ((T.zeroCoinTurns / T.totalTurns) * 100).toFixed(1) : '0.0';
+        const dialPerTurn = T.totalTurns > 0 ? (T.dialTouches / T.totalTurns).toFixed(2) : '0.00';
+        const c3AssistShare = totalScore > 0 ? ((T.cards[3].assistedPoints / totalScore) * 100).toFixed(1) : '0.0';
+        const totalIns = T.tokenStats.shieldInsuranceByClash + T.tokenStats.shieldInsuranceBySkill;
+        const freeAllyTotal = T.phase4CommandChoices.freeAllyBase + T.phase4CommandChoices.freeAllyAwk;
+
+        // V10.3_SA 金幣守恆驗算（公區 5 產出 - 公區 2 消耗 === 終局全體結餘總和）
+        const grossPublicSources = T.coinSources.initial + T.coinSources.rest + T.coinSources.shieldInsurance + T.coinSources.card4Base + T.coinSources.card4AwkSupply;
+        const grossPublicSinks = T.coinSinks.willDieCost + T.coinSinks.overflowLost;
+        const expectedTotalCoins = grossPublicSources - grossPublicSinks;
+        const actualTotalCoins = G.players.reduce((s, pl) => s + pl.coins, 0);
+        const coinBalanced = expectedTotalCoins === actualTotalCoins;
+
+        let md = `# 《王座爭奪：覺醒之戰》V10.3_SA 遙測數據與平衡性診斷戰報\n`;
+        md += `- **規則基準版本 (rulesVersion)**：\`${T.rulesVersion}\`（起始 ${T.initialCoins} 幣 / 上限 ${T.maxCoins} 幣 / 護盾 ${MAX_SHIELD} 枚 (+${SHIELD_PAYOUT} 幣) / 休整 +${REST_GAIN} 幣 / #4 +${CARD4_GAIN}幣(+2分) / #5 奪1幣(+1分) / 階段4撤回）\n`;
+        md += `- **對局與經濟參數**：${T.playerCount} 人局 ‧ 目標 ${T.targetVP} 分 ‧ 起始 ${T.initialCoins} 幣 / 上限 ${T.maxCoins} 幣 ‧ 開局模式 \`${T.seatMethod}\`\n`;
+        md += `- **總輪數與耗時**：${G.round} 輪（共 ${T.totalTurns} 個玩家回合） ‧ 耗時：${duration} 秒\n\n`;
+
+        md += `---\n\n## 一、 V10.3_SA 核心 KPI 健康度診斷表\n\n`;
+        md += `| 核心監控 KPI | 當前實測值 | V10.3_SA 設計驗證重點 |\n`;
+        md += `| :--- | :--- | :--- |\n`;
+        md += `| **1. 📊 每回合平均撥盤次數 (Dial Touches/Turn)** | **${dialPerTurn} 次/回合** (${T.dialTouches}/${T.totalTurns}) | 檢視 2~5 幣低流轉經濟、休整 (+${REST_GAIN}幣) 與單倍護盾下的實體撥盤負擔 |\n`;
+        md += `| **2. 🎲 0幣【順應天命】直推 & 0幣佔比** | 順應天命 **${T.phase2Choices.freeDirectPush_0coin} 次** ／ 0 幣回合佔比 **${zeroCoinRate}%** (${T.zeroCoinTurns} 次) | 檢視起始 2 幣與滿 5 幣禁休整下的 0 幣直推與休整 (+${REST_GAIN}幣) 節奏 |\n`;
+        md += `| **3. 全場平均覺醒轉化率** | **${awkRate}%** (${totalAwk}/${totalPushed}) | 評估全套僅 #5 (+1分) 與其餘五張 (+2分) 梯度、#3 助攻 (${c3AssistShare}%) 與 3 幣同點直覺流暢度 |\n`;
+        md += `| **4. 👑 覺醒免費調度 & 🏳️ 階段 4 戰術撤回** | 免費調度 **${freeAllyTotal} 次** ／ 0幣撤回 **${T.phase4CommandChoices.fallbackRetreat0Coin} 次** ／ 直接結束 **${T.phase4CommandChoices.passTurn} 次** | 檢視階段 4 0 幣撤回覺醒牌對反制 #5 偷幣的實戰效益 |\n`;
+        md += `| **5. 🛡️ 單倍護盾撫卹 & 🌀#5搶幣 / 🐎#6先鋒增援** | 護盾撫卹 **${totalIns} 次** (+${T.coinSources.shieldInsurance}幣) ／ #5 時空扭曲 **${T.warpSeizeCount} 次** (奪 ${T.coinSources.card5Steal} 幣／撲空 ${T.card5StealWhiff} 次) ／ #6 先鋒增援 **${T.cavalryAdvanceCount} 次** | 檢視 #4 (+1幣/+2分) 與 #5 (奪1幣/+1分) 在休整 +2 幣環境下的定位平衡 |\n\n`;
+
+        md += `### 參戰玩家終局表現\n`;
+        md += `| 玩家陣營 | 順位 | 最終得分 | 結算行動幣 | AI/人類 | 終局狀態 |\n`;
+        md += `| :--- | :--- | :--- | :--- | :--- | :--- |\n`;
+        G.players.forEach((pl, i) => {
+          const role = pl.type === 'AI' ? (pl.difficulty === 'CASUAL' ? 'AI(休閒)' : 'AI(高手)') : '真人';
+          md += `| ${pl.seatTag} ${pl.name} | Seat ${i + 1} | ${pl.score} 分 | ${pl.coins}/${T.maxCoins} 幣 | ${role} | ${G.winner && G.winner.id === pl.id ? '🏆 獲勝' : '-'} |\n`;
+        });
+
+        md += `\n---\n\n## 二、 三大維度統計表格\n\n`;
+        md += `### 維度一：階段 2 ～ 階段 4 玩家決策分佈\n`;
+        md += `- **階段 2 全體通用五選一分佈**：\n`;
+        md += `  - 🎲 順應天命直推 #D (0幣)：${T.phase2Choices.freeDirectPush_0coin} 次 ｜ 異點小骰 (1幣)：${T.phase2Choices.willSmall_1coin} 次 ｜ 異點大骰 (2幣)：${T.phase2Choices.willBig_2coin} 次 ｜ 同點直覺 (3幣・限空/敵)：${T.phase2Choices.willDirectAwaken_3coin} 次 ｜ 戰術休整 (+${REST_GAIN}幣・滿5幣禁用)：${T.phase2Choices.rest_2coin} 次\n`;
+        md += `- **階段 3 擊退結算（全面 0 幣擊退）**：免費擊退基礎牌 ${T.clashChoices.freeBaseKnockback} 次 ｜ 免費擊退覺醒牌 (0幣) ${T.clashChoices.freeAwkKnockback} 次\n`;
+        md += `- **階段 4 權能決策（全面 0 幣・零保底・支援 0 幣撤回）**：免費發動當前 (基礎 ${T.phase4CommandChoices.freeSelfBase} / 覺醒 ${T.phase4CommandChoices.freeSelfAwk}) ｜ 覺醒免費調度隊友 (基礎 ${T.phase4CommandChoices.freeAllyBase} / 覺醒 ${T.phase4CommandChoices.freeAllyAwk}) ｜ 0 幣戰術撤回 ${T.phase4CommandChoices.fallbackRetreat0Coin} 次 ｜ 直接結束回合 ${T.phase4CommandChoices.passTurn} 次\n\n`;
+
+        md += `### 維度二：1～6 號卡牌漏斗與護盾生命週期\n`;
+        md += `| 卡牌 | 進駐總次 (增援/時空搶位) | 基礎技生效 | 覺醒次數 (轉化率) | 貢獻勝分 | 覺醒技生效 | 戰術撤回 |\n`;
+        md += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
+        for (let c = 1; c <= 6; c++) {
+          const cs = T.cards[c];
+          const sp = CARD_SPECS[c];
+          const conv = cs.pushed > 0 ? ((cs.awakened / cs.pushed) * 100).toFixed(1) + '%' : '0.0%';
+          const scoreLabel = c === 3 && cs.assistedPoints > 0 ? `${cs.pointsScored} 分 (🔮助攻 +${cs.assistedPoints}分)` : `${cs.pointsScored} 分`;
+          md += `| #${c} ${sp.baseName} (+${sp.points}分) | ${cs.pushed} (增援${cs.cavalryPulledCount}/搶位${cs.warpSeizedCount}) | ${cs.baseTriggered} | ${cs.awakened} (${conv}) | ${scoreLabel} | ${cs.awkTriggered} | ${cs.tacticalRetreats} |\n`;
+        }
+        md += `\n- **🛡️ 護盾生命週期統計（公區上限 6 枚・單倍 +1 幣撫卹）**：掛載 ${T.tokenStats.shieldApplied} 次 ｜ 升級保留 ${T.tokenStats.shieldRetainedOnAwk} 次 ｜ 物理擊退撫卹 ${T.tokenStats.shieldInsuranceByClash} 次 ｜ 敵方技能撫卹 ${T.tokenStats.shieldInsuranceBySkill} 次\n\n`;
+
+        md += `### 維度三：V10.3_SA 行動幣經濟流向與守恆驗算 (V10.3_SA Coin Economy)\n`;
+        md += `- **公區產出源 (5 項 Sources)**：起始 ${T.coinSources.initial} 幣 ｜ 戰術休整 (+${REST_GAIN}幣) +${T.coinSources.rest} 幣 ｜ 🛡️護盾撫卹 (+1幣) +${T.coinSources.shieldInsurance} 幣 ｜ #4 基礎面點石成金 (+${CARD4_GAIN}幣) +${T.coinSources.card4Base} 幣 ｜ #4 覺醒面點石成金 (+${CARD4_GAIN}幣) +${T.coinSources.card4AwkSupply} 幣\n`;
+        md += `- **玩家間轉移**：#5 時空扭曲強奪 ${T.coinSources.card5Steal} 幣（撲空 ${T.card5StealWhiff} 次；全遊戲唯一偷錢技能，滿上限溢額已計入 overflowLost）\n`;
+        md += `- **公區消耗源 (2 項 Sinks)**：階段 2 意志骰實付 -${T.coinSinks.willDieCost} 幣 ｜ 上限溢出繳回 -${T.coinSinks.overflowLost} 幣\n`;
+        md += `- **金幣守恆驗算**：公區淨產出 (${grossPublicSources}) − 公區淨消耗 (${grossPublicSinks}) = **${expectedTotalCoins} 幣** ｜ 終局全體結餘總和 = **${actualTotalCoins} 幣** ➔ ${coinBalanced ? '✅ 100% 守恆閉合' : '⚠️ 帳面偏差'}\n\n`;
+
+        md += `---\n\n## 三、 完整回合戰況時間軸日誌\n\`\`\`text\n`;
+        md += [...T.logs].reverse().join('\n');
+        md += `\n\`\`\`\n\n`;
+
+        md += `---\n\n## 四、 內嵌 JSON 原始遙測數據區塊\n\`\`\`json\n`;
+        md += JSON.stringify(T, null, 2);
+        md += `\n\`\`\`\n\n`;
+
+        md += `---\n\n## 五、 Google NotebookLM V10.3_SA 專用分析提示詞模板\n`;
+        md += `1. **【🪙 休整 +2 幣與 #4 (+1幣/+2分) 節奏檢定】**：「請根據 V10.3_SA 戰報，分析戰術休整回調為 +2 幣（4 幣休整溢額記入 overflowLost=${T.coinSinks.overflowLost}）且 #4 回歸 +2 分/+1 幣後，是否有效消除首輪機械搶 #4 並改善末盤聽牌蓄力直覺的流暢度。」\n`;
+        md += `2. **【🏳️ 階段 4 0 幣戰術撤回反制 #5 效果評估】**：「請統計本局 0 幣戰術撤回 (${T.phase4CommandChoices.fallbackRetreat0Coin} 次) 與 #5 搶幣次數 (奪 ${T.coinSources.card5Steal} 幣／撲空 ${T.card5StealWhiff} 次)，評估撤回機制在休整 +2 幣環境下的實戰價值。」\n`;
+        md += `3. **【📊 低流轉撥盤與整體節奏檢核】**：「請檢視每回合平均撥盤次數 (${dialPerTurn})、0 幣順應天命 (${T.phase2Choices.freeDirectPush_0coin} 次) 與 #6 先鋒增援 (${T.cavalryAdvanceCount} 次) 的分佈健康度。」\n`;
+        return md;
+      }
+
+      function updateTelemetryModal() {
+        const md = generateMarkdownReport();
+        const previewEl = document.getElementById('telemetry-preview');
+        if (previewEl) previewEl.textContent = md;
+
+        let totalPushed = 0, totalAwk = 0;
+        for (let c = 1; c <= 6; c++) {
+          totalPushed += T.cards[c].pushed;
+          totalAwk += T.cards[c].awakened;
+        }
+        const awkRate = totalPushed > 0 ? ((totalAwk / totalPushed) * 100).toFixed(1) : '0.0';
+        const dialPerTurn = T.totalTurns > 0 ? (T.dialTouches / T.totalTurns).toFixed(2) : '0.00';
+        const totalIns = T.tokenStats.shieldInsuranceByClash + T.tokenStats.shieldInsuranceBySkill;
+
+        const kpiEl = document.getElementById('kpi-summary-cards');
+        if (kpiEl) {
+          kpiEl.innerHTML = `
+            <div class="bg-[#0b0e17] border border-slate-800 rounded-xl p-3">
+              <div class="text-[11px] text-slate-400">1. 📊 每回合平均撥盤次數</div>
+              <div class="text-lg font-black text-sky-400 mt-0.5">${dialPerTurn} 次/回合</div>
+              <div class="text-[10px] text-slate-500">總撥盤 ${T.dialTouches} 次 / ${T.totalTurns} 回合 ‧ 0幣回合: ${T.zeroCoinTurns} 次</div>
+            </div>
+            <div class="bg-[#0b0e17] border border-slate-800 rounded-xl p-3">
+              <div class="text-[11px] text-slate-400">2. 🎲 順應天命 &amp; 全場覺醒率</div>
+              <div class="text-lg font-black text-emerald-400 mt-0.5">直推 ${T.phase2Choices.freeDirectPush_0coin}次 / ${awkRate}%</div>
+              <div class="text-[10px] text-slate-500">⚡ 同點直覺: ${T.phase2Choices.willDirectAwaken_3coin} 次 ‧ 休整+${REST_GAIN}幣: ${T.phase2Choices.rest_2coin} 次</div>
+            </div>
+            <div class="bg-[#0b0e17] border border-slate-800 rounded-xl p-3">
+              <div class="text-[11px] text-slate-400">3. 👑 階段 4 調度 &amp; 🏳️ 0幣撤回</div>
+              <div class="text-lg font-black text-amber-400 mt-0.5">調度 ${T.phase4CommandChoices.freeAllyBase + T.phase4CommandChoices.freeAllyAwk}次 / 撤回 ${T.phase4CommandChoices.fallbackRetreat0Coin}次</div>
+              <div class="text-[10px] text-slate-500">直接結束: ${T.phase4CommandChoices.passTurn} 次 ‧ 專職防 #5 偷幣</div>
+            </div>
+            <div class="bg-[#0b0e17] border border-slate-800 rounded-xl p-3">
+              <div class="text-[11px] text-slate-400">4. 🛡️ 護盾撫卹(+1幣) &amp; 🌀#5搶幣</div>
+              <div class="text-lg font-black text-purple-400 mt-0.5">撫卹 ${totalIns}次 / #5奪 ${T.coinSources.card5Steal}幣</div>
+              <div class="text-[10px] text-slate-500">#5 撲空: ${T.card5StealWhiff} 次 ‧ #6 先鋒增援: ${T.cavalryAdvanceCount} 次</div>
+            </div>
+          `;
+        }
+      }
+
+      function downloadReport(ext) {
+        const content = generateMarkdownReport();
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        a.href = url;
+        a.download = `ThroneWar_V10_3_SA_${ts}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast(`已下載 V10.3_SA .${ext} 遙測戰報檔案！`);
+      }
+
+      function copyReportToClipboard() {
+        const content = generateMarkdownReport();
+        const ta = document.createElement('textarea');
+        ta.value = content;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('📋 已複製完整 V10.3_SA Markdown 戰報至剪貼簿！');
+      }
+
+      function showToast(msg) {
+        const el = document.getElementById('toast-msg');
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.remove('hidden');
+        setTimeout(() => el.classList.add('hidden'), 2600);
+      }
+
+      // 啟動初始化（相容 DOMContentLoaded 之前與之後載入）
+      function boot() {
+        try {
+          renderLobby();
+          prepareNewMatch();
+          renderAll();
+          startTurn();
+        } catch (err) {
+          console.error('V10.3_SA Boot Error:', err);
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        window.addEventListener('DOMContentLoaded', boot);
+      } else {
+        boot();
+      }
+
+      return {
+        switchMainTab,
+        setLobbyConfig,
+        setEconomySlider,
+        toggleSlot,
+        updateSlotField,
+        applySlotPreset,
+        launchSeatResolutionModal,
+        confirmEnterArena,
+        playerRollFateDie,
+        selectWillDieUI,
+        executePhase2Action,
+        executePhase2Rest,
+        triggerFreeSelfCommand,
+        triggerAllyCommand,
+        startPhase4Retreat,
+        cancelSkillTarget,
+        passPhase4Turn,
+        handleThroneClick,
+        clearLogs,
+        toggleAutoPlay,
+        toggleSandboxBar,
+        sandboxSetFateDie,
+        sandboxModCoin,
+        sandboxSetZeroCoin,
+        sandboxAllShields,
+        sandboxInstantWin,
+        downloadReport,
+        copyReportToClipboard
+      };
+    })();
+  </script>
+</body>
+</html>
