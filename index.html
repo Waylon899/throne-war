@@ -2829,6 +2829,8 @@
       // V10.5 遙測戰報生成器 (.md / .txt) 含 ddArithCount、restAt5Count、T1 去驟死化監控與 100% 金幣守恆驗算
       // ============================================================================
       function generateMarkdownReport() {
+        const ver = T.rulesVersion || RULES_VERSION;
+        const p2 = T.phase2Choices;
         const duration = T.durationSec || Math.max(1, Math.round((Date.now() - G.startTimeMs) / 1000));
         let totalPushed = 0, totalAwk = 0, totalScore = 0;
         for (let c = 1; c <= 6; c++) {
@@ -2843,23 +2845,23 @@
         const totalIns = T.tokenStats.shieldInsuranceByClash + T.tokenStats.shieldInsuranceBySkill;
         const freeAllyTotal = T.phase4CommandChoices.freeAllyBase + T.phase4CommandChoices.freeAllyAwk;
 
-        // V10.5 金幣守恆驗算（公區 5 產出 - 公區 2 消耗 === 終局全體結餘總和）
+        // 金幣守恆驗算（公區 5 產出 - 公區 2 消耗 === 終局全體結餘總和）
         const grossPublicSources = T.coinSources.initial + T.coinSources.rest + T.coinSources.shieldInsurance + T.coinSources.card4Base + T.coinSources.card4AwkSupply;
         const grossPublicSinks = T.coinSinks.willDieCost + T.coinSinks.overflowLost;
         const expectedTotalCoins = grossPublicSources - grossPublicSinks;
         const actualTotalCoins = G.players.reduce((s, pl) => s + pl.coins, 0);
         const coinBalanced = expectedTotalCoins === actualTotalCoins;
 
-        let md = `# 《王座爭奪：覺醒之戰》V10.5 遙測數據與平衡性診斷戰報\n`;
-        md += `- **規則基準版本 (rulesVersion)**：\`${T.rulesVersion}\`（${RULE_SPEC_SUMMARY}）\n`;
+        let md = `# 《王座爭奪：覺醒之戰》${ver} 遙測數據與平衡性診斷戰報\n`;
+        md += `- **規則基準版本 (rulesVersion)**：\`${ver}\`（${RULE_SPEC_SUMMARY}）\n`;
         md += `- **對局與經濟參數**：${T.playerCount} 人局 ‧ 目標 ${T.targetVP} 分 ‧ 起始 ${T.initialCoins} 幣 / 上限 ${T.maxCoins} 幣 ‧ 開局模式 \`${T.seatMethod}\`\n`;
         md += `- **總輪數與耗時**：${G.round} 輪（共 ${T.totalTurns} 個玩家回合） ‧ 耗時：${duration} 秒\n\n`;
 
-        md += `---\n\n## 一、 V10.5 核心 KPI 健康度診斷表\n\n`;
-        md += `| 核心監控 KPI | 當前實測值 | V10.5 設計驗證重點 |\n`;
+        md += `---\n\n## 一、 ${ver} 核心 KPI 健康度診斷表\n\n`;
+        md += `| 核心監控 KPI | 當前實測值 | ${ver} 設計驗證重點 |\n`;
         md += `| :--- | :--- | :--- |\n`;
         md += `| **1. 📊 每回合平均撥盤次數 (Dial Touches/Turn)** | **${dialPerTurn} 次/回合** (${T.dialTouches}/${T.totalTurns}) | 檢視 2~5 幣低流轉經濟、無條件休整 (+${REST_GAIN}幣) 與單倍護盾下的實體撥盤負擔 |\n`;
-        md += `| **2. 🎲 順應天命 / D+D 小骰算術 / 滿 5 幣休整** | 順應天命 **${T.phase2Choices.freeDirectPush_0coin} 次** ／ D+D 小骰 **${T.ddArithCount} 次** ／ 滿5幣休整 **${T.restAt5Count} 次** ／ 0幣佔比 **${zeroCoinRate}%** | 檢視物理脫鉤後 1+1=2 / 2+2=4 / 3+3=6 算術利用率與無條件休整表現 |\n`;
+        md += `| **2. 🎲 順應天命 / 小骰改命 (D+D) / 無條件休整 (+${REST_GAIN}幣)** | 順應天命 **${p2.freeDirectPush_0coin} 次** ／ D+D 小骰 **${T.ddArithCount} 次** ／ 滿5幣休整 **${T.restAt5Count} 次** ／ 0幣佔比 **${zeroCoinRate}%** | 檢視物理脫鉤後 1+1=2 / 2+2=4 / 3+3=6 算術利用率與無條件休整 (+${REST_GAIN}幣) 節奏 |\n`;
         md += `| **3. 🧯 T1 去驟死化監控 (單回合≥4分 / ≤6分暴斃)** | 單回合≥4分爆發 **${T.burst4VPCount} 次** ／ ≤6分起手直達奪冠 **${T.suddenWinFrom6OrLess ? '⚠️ 是 (true)' : '✅ 否 (false)'}** | 驗證 #3 降為 +1 分與 3 幣重金直覺脫鉤後，是否徹底消滅 6 分驟死現象 |\n`;
         md += `| **4. 全場平均覺醒轉化率 & #3 助攻佔比** | **${awkRate}%** (${totalAwk}/${totalPushed}) ／ #3 助攻 **${c3AssistShare}%** | 評估 #3/#5 (+1分) 與 #1/#2/#4/#6 (+2分) 梯度與 3 幣重金直覺流暢度 |\n`;
         md += `| **5. 👑 覺醒免費調度 & 🏳️ 階段 4 戰術撤回** | 免費調度 **${freeAllyTotal} 次** ／ 0幣撤回 **${T.phase4CommandChoices.fallbackRetreat0Coin} 次** ／ 直接結束 **${T.phase4CommandChoices.passTurn} 次** | 檢視階段 4 0 幣撤回覺醒牌（僅高手 AI 執行）對反制 #5 偷幣的實戰效益 |\n`;
@@ -2875,9 +2877,12 @@
 
         md += `\n---\n\n## 二、 三大維度統計表格\n\n`;
         md += `### 維度一：階段 2 ～ 階段 4 玩家決策分佈\n`;
-        md += `- **階段 2 物理脫鉤雙區塊分佈**：\n`;
-        md += `  - 【區塊 A 不動意志骰】順應天命直推 #D (0幣)：${T.phase2Choices.freeDirectPush_0coin} 次 ｜ 重金直覺 (3幣・限空/敵)：${T.phase2Choices.heavyIntuition_3coin} 次 ｜ 無條件戰術休整 (+${REST_GAIN}幣)：${T.phase2Choices.rest_2coin} 次（其中滿 5 幣空過：${T.restAt5Count} 次）\n`;
-        md += `  - 【區塊 B 拿起意志骰】小骰改命 (1幣)：${T.phase2Choices.willSmall_1coin} 次（含 D+D 同點相加：${T.ddArithCount} 次） ｜ 大骰改命 (2幣)：${T.phase2Choices.willBig_2coin} 次\n`;
+        md += `- **階段 2 物理脫鉤五選一分佈**：\n`;
+        md += `  - 🎲 順應天命直推 #D (0幣)：${p2.freeDirectPush_0coin} 次`
+            + ` ｜ 小骰改命 (1幣・含D+D ${T.ddArithCount}次)：${p2.willSmall_1coin} 次`
+            + ` ｜ 大骰改命 (2幣)：${p2.willBig_2coin} 次`
+            + ` ｜ 重金直覺 (3幣・不動意志骰)：${p2.heavyIntuition_3coin} 次`
+            + ` ｜ 戰術休整 (+${REST_GAIN}幣・無條件／滿5空過 ${T.restAt5Count}次)：${p2.rest_2coin} 次\n`;
         md += `- **階段 3 擊退結算（全面 0 幣擊退）**：免費擊退基礎牌 ${T.clashChoices.freeBaseKnockback} 次 ｜ 免費擊退覺醒牌 (0幣) ${T.clashChoices.freeAwkKnockback} 次\n`;
         md += `- **階段 4 權能決策（全面 0 幣・零保底・支援 0 幣撤回）**：免費發動當前 (基礎 ${T.phase4CommandChoices.freeSelfBase} / 覺醒 ${T.phase4CommandChoices.freeSelfAwk}) ｜ 覺醒免費調度隊友 (基礎 ${T.phase4CommandChoices.freeAllyBase} / 覺醒 ${T.phase4CommandChoices.freeAllyAwk}) ｜ 0 幣戰術撤回 ${T.phase4CommandChoices.fallbackRetreat0Coin} 次 ｜ 直接結束回合 ${T.phase4CommandChoices.passTurn} 次\n\n`;
 
@@ -2892,10 +2897,10 @@
         }
         md += `\n- **🛡️ 護盾生命週期統計（公區上限 6 枚・單倍 +1 幣撫卹）**：掛載 ${T.tokenStats.shieldApplied} 次 ｜ 升級保留 ${T.tokenStats.shieldRetainedOnAwk} 次 ｜ 物理擊退撫卹 ${T.tokenStats.shieldInsuranceByClash} 次 ｜ 敵方技能撫卹 ${T.tokenStats.shieldInsuranceBySkill} 次\n\n`;
 
-        md += `### 維度三：V10.5 行動幣經濟流向與守恆驗算 (V10.5 Coin Economy)\n`;
-        md += `- **公區產出源 (5 項 Sources)**：起始 ${T.coinSources.initial} 幣 ｜ 戰術休整 (+${REST_GAIN}幣) +${T.coinSources.rest} 幣 ｜ 🛡️護盾撫卹 (+1幣) +${T.coinSources.shieldInsurance} 幣 ｜ #4 基礎面點石成金 (+${CARD4_GAIN}幣) +${T.coinSources.card4Base} 幣 ｜ #4 覺醒面點石成金 (+${CARD4_GAIN}幣) +${T.coinSources.card4AwkSupply} 幣\n`;
+        md += `### 維度三：${ver} 行動幣經濟流向與守恆驗算 (${ver} Coin Economy)\n`;
+        md += `- **公區產出源 (5 項 Sources)**：起始 ${T.coinSources.initial} 幣 ｜ 無條件戰術休整 (+${REST_GAIN}幣) +${T.coinSources.rest} 幣 ｜ 🛡️護盾撫卹 (+1幣) +${T.coinSources.shieldInsurance} 幣 ｜ #4 基礎面點石成金 (+${CARD4_GAIN}幣) +${T.coinSources.card4Base} 幣 ｜ #4 覺醒面點石成金 (+${CARD4_GAIN}幣) +${T.coinSources.card4AwkSupply} 幣\n`;
         md += `- **玩家間轉移**：#5 時空扭曲強奪 ${T.coinSources.card5Steal} 幣（撲空 ${T.card5StealWhiff} 次；全遊戲唯一偷錢技能，滿上限溢額已計入 overflowLost）\n`;
-        md += `- **公區消耗源 (2 項 Sinks)**：階段 2 意志骰與重金直覺實付 -${T.coinSinks.willDieCost} 幣 ｜ 上限溢出繳回 -${T.coinSinks.overflowLost} 幣\n`;
+        md += `- **公區消耗源 (2 項 Sinks)**：階段 2 意志骰改命與重金直覺實付 -${T.coinSinks.willDieCost} 幣 ｜ 上限溢出繳回 -${T.coinSinks.overflowLost} 幣\n`;
         md += `- **金幣守恆驗算**：公區淨產出 (${grossPublicSources}) − 公區淨消耗 (${grossPublicSinks}) = **${expectedTotalCoins} 幣** ｜ 終局全體結餘總和 = **${actualTotalCoins} 幣** ➔ ${coinBalanced ? '✅ 100% 守恆閉合' : '⚠️ 帳面偏差'}\n\n`;
 
         md += `---\n\n## 三、 完整回合戰況時間軸日誌\n\`\`\`text\n`;
@@ -2906,8 +2911,8 @@
         md += JSON.stringify(T, null, 2);
         md += `\n\`\`\`\n\n`;
 
-        md += `---\n\n## 五、 Google NotebookLM V10.5 專用分析提示詞模板\n`;
-        md += `1. **【🎲 V10.5 物理脫鉤與 D+D 小骰算術評估】**：「請根據 V10.5 戰報中的 ddArithCount (${T.ddArithCount} 次)、heavyIntuition_3coin (${T.phase2Choices.heavyIntuition_3coin} 次) 與 restAt5Count (${T.restAt5Count} 次)，分析將 3 幣重金直覺與意志骰脫鉤並開放 1+1=2 / 2+2=4 / 3+3=6 算術後的決策流暢度。」\n`;
+        md += `---\n\n## 五、 Google NotebookLM ${ver} 專用分析提示詞模板\n`;
+        md += `1. **【🎲 ${ver} 物理脫鉤與 D+D 小骰改命評估】**：「請根據 ${ver} 戰報中的 ddArithCount (${T.ddArithCount} 次)、heavyIntuition_3coin (${p2.heavyIntuition_3coin} 次) 與 restAt5Count (${T.restAt5Count} 次)，分析將 3 幣重金直覺與意志骰脫鉤並開放 1+1=2 / 2+2=4 / 3+3=6 小骰改命後的決策流暢度。」\n`;
         md += `2. **【🧯 T1 去驟死化成效 & 8 分非絕殺防誤直覺】**：「請檢視 burst4VPCount (${T.burst4VPCount} 次) 與 suddenWinFrom6OrLess (${T.suddenWinFrom6OrLess})，以及 AI 在 8 分面對 +1 分格 (#3/#5) 時是否有效避免白燒 3 幣重金直覺。」\n`;
         md += `3. **【🤖 高手 AI vs. 休閒 AI 體感差距與守恆檢核】**：「請檢視每回合平均撥盤次數 (${dialPerTurn})、溢額繳回 (${T.coinSinks.overflowLost} 幣) 與高手／休閒 AI 的殘局表現差異。」\n`;
         return md;
@@ -2936,7 +2941,7 @@
               <div class="text-[10px] text-slate-500">總撥盤 ${T.dialTouches} 次 / ${T.totalTurns} 回合 ‧ 滿5幣休整: ${T.restAt5Count} 次</div>
             </div>
             <div class="bg-[#0b0e17] border border-slate-800 rounded-xl p-3">
-              <div class="text-[11px] text-slate-400">2. 🎲 D+D 小骰 &amp; ⚡重金直覺</div>
+              <div class="text-[11px] text-slate-400">2. 🎲 D+D 小骰改命 &amp; ⚡重金直覺</div>
               <div class="text-lg font-black text-amber-400 mt-0.5">D+D ${T.ddArithCount}次 / 直覺 ${T.phase2Choices.heavyIntuition_3coin}次</div>
               <div class="text-[10px] text-slate-500">單回≥4分: ${T.burst4VPCount}次 ‧ ≤6分驟死: ${T.suddenWinFrom6OrLess ? '⚠️是' : '✅否'} ‧ 覺醒率: ${awkRate}%</div>
             </div>
@@ -2961,12 +2966,12 @@
         const a = document.createElement('a');
         const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
         a.href = url;
-        a.download = `ThroneWar_V10_5_${ts}.${ext}`;
+        a.download = `ThroneWar_${RULES_VERSION}_${ts}.${ext}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showToast(`已下載 V10.5 .${ext} 遙測戰報檔案！`);
+        showToast(`已下載 ${RULES_VERSION} .${ext} 遙測戰報檔案！`);
       }
 
       function copyReportToClipboard() {
@@ -2977,236 +2982,7 @@
         ta.select();
         document.execCommand('copy');
         document.body.removeChild(ta);
-        showToast('📋 已複製完整 V10.5 Markdown 戰報至剪貼簿！');
-      }
-
-      function showToast(msg) {
-        const el = document.getElementById('toast-msg');
-        if (!el) return;
-        el.textContent = msg;
-        el.classList.remove('hidden');
-        setTimeout(() => el.classList.add('hidden'), 2600);
-      }
-
-      // 啟動初始化（相容 DOMContentLoaded 之前與之後載入）
-      function boot() {
-        try {
-          renderLobby();
-          prepareNewMatch();
-          renderAll();
-          startTurn();
-        } catch (err) {
-          console.error('V10.5 Boot Error:', err);
-        }
-      }
-
-      function toggleSandboxBar() {
-        const el = document.getElementById('sandbox-bar');
-        if (el) el.classList.toggle('hidden');
-      }
-
-      function sandboxSetFateDie() {
-        const d = parseInt(document.getElementById('sb-fate').value, 10) || 6;
-        G.fateDie = d;
-        logEvent(`🛠️ [SANDBOX] 強制指定天命骰 D = [${d}] 並進入階段 2`);
-        enterPhase2();
-      }
-
-      function sandboxModCoin(delta) {
-        const p = G.players[G.currentPlayerIdx];
-        const before = p.coins;
-        p.coins = Math.max(0, Math.min(lobbyConfig.maxCoins, p.coins + delta));
-        const diff = p.coins - before;
-        T.coinSources.initial += diff;
-        logEvent(`🛠️ [SANDBOX] 調整 ${p.seatTag} 行動幣為 ${p.coins}/${lobbyConfig.maxCoins} 幣`);
-        renderAll();
-      }
-
-      function sandboxSetZeroCoin() {
-        const p = G.players[G.currentPlayerIdx];
-        const diff = -p.coins;
-        p.coins = 0;
-        T.coinSources.initial += diff;
-        logEvent(`🛠️ [SANDBOX] 將 ${p.seatTag} 行動幣歸 0（測試 0 幣順應天命直推 / 戰術休整）`);
-        renderAll();
-      }
-
-      function sandboxAllShields() {
-        for (let c = 1; c <= 6; c++) {
-          if (G.thrones[c].owner !== null && !G.thrones[c].shield && G.supply.shield > 0) {
-            G.thrones[c].shield = true;
-            G.supply.shield = Math.max(0, G.supply.shield - 1);
-          }
-        }
-        logEvent(`🛠️ [SANDBOX] 為王座區所有在場無盾卡牌掛載【🛡️護盾】`);
-        renderAll();
-      }
-
-      function sandboxInstantWin() {
-        const p = G.players[G.currentPlayerIdx];
-        p.score = lobbyConfig.targetVP;
-        finalizeTurnBurstMetrics(p);
-        G.gameOver = true;
-        G.winner = p;
-        T.winnerId = p.id;
-        T.durationSec = Math.max(1, Math.round((Date.now() - G.startTimeMs) / 1000));
-        clearAITimers();
-        logEvent(`🛠️🏆 [SANDBOX] 觸發 ${p.seatTag} 立即達標獲勝結算！`);
-        renderAll();
-      }
-
-      // ============================================================================
-      // V10.4_T1 遙測戰報生成器 (.md / .txt) 含 T1 去驟死化監控與 100% 金幣守恆驗算
-      // ============================================================================
-      function generateMarkdownReport() {
-        const duration = T.durationSec || Math.max(1, Math.round((Date.now() - G.startTimeMs) / 1000));
-        let totalPushed = 0, totalAwk = 0, totalScore = 0;
-        for (let c = 1; c <= 6; c++) {
-          totalPushed += T.cards[c].pushed;
-          totalAwk += T.cards[c].awakened;
-          totalScore += T.cards[c].pointsScored;
-        }
-        const awkRate = totalPushed > 0 ? ((totalAwk / totalPushed) * 100).toFixed(1) : '0.0';
-        const zeroCoinRate = T.totalTurns > 0 ? ((T.zeroCoinTurns / T.totalTurns) * 100).toFixed(1) : '0.0';
-        const dialPerTurn = T.totalTurns > 0 ? (T.dialTouches / T.totalTurns).toFixed(2) : '0.00';
-        const c3AssistShare = totalScore > 0 ? ((T.cards[3].assistedPoints / totalScore) * 100).toFixed(1) : '0.0';
-        const totalIns = T.tokenStats.shieldInsuranceByClash + T.tokenStats.shieldInsuranceBySkill;
-        const freeAllyTotal = T.phase4CommandChoices.freeAllyBase + T.phase4CommandChoices.freeAllyAwk;
-
-        // V10.4_T1 金幣守恆驗算（公區 5 產出 - 公區 2 消耗 === 終局全體結餘總和）
-        const grossPublicSources = T.coinSources.initial + T.coinSources.rest + T.coinSources.shieldInsurance + T.coinSources.card4Base + T.coinSources.card4AwkSupply;
-        const grossPublicSinks = T.coinSinks.willDieCost + T.coinSinks.overflowLost;
-        const expectedTotalCoins = grossPublicSources - grossPublicSinks;
-        const actualTotalCoins = G.players.reduce((s, pl) => s + pl.coins, 0);
-        const coinBalanced = expectedTotalCoins === actualTotalCoins;
-
-        let md = `# 《王座爭奪：覺醒之戰》V10.4_T1 遙測數據與平衡性診斷戰報\n`;
-        md += `- **規則基準版本 (rulesVersion)**：\`${T.rulesVersion}\`（${RULE_SPEC_SUMMARY}）\n`;
-        md += `- **對局與經濟參數**：${T.playerCount} 人局 ‧ 目標 ${T.targetVP} 分 ‧ 起始 ${T.initialCoins} 幣 / 上限 ${T.maxCoins} 幣 ‧ 開局模式 \`${T.seatMethod}\`\n`;
-        md += `- **總輪數與耗時**：${G.round} 輪（共 ${T.totalTurns} 個玩家回合） ‧ 耗時：${duration} 秒\n\n`;
-
-        md += `---\n\n## 一、 V10.4_T1 核心 KPI 健康度診斷表\n\n`;
-        md += `| 核心監控 KPI | 當前實測值 | V10.4_T1 設計驗證重點 |\n`;
-        md += `| :--- | :--- | :--- |\n`;
-        md += `| **1. 📊 每回合平均撥盤次數 (Dial Touches/Turn)** | **${dialPerTurn} 次/回合** (${T.dialTouches}/${T.totalTurns}) | 檢視 2~5 幣低流轉經濟、休整 (+${REST_GAIN}幣) 與單倍護盾下的實體撥盤負擔 |\n`;
-        md += `| **2. 🎲 0幣【順應天命】直推 & 0幣佔比** | 順應天命 **${T.phase2Choices.freeDirectPush_0coin} 次** ／ 0 幣回合佔比 **${zeroCoinRate}%** (${T.zeroCoinTurns} 次) | 檢視起始 2 幣與滿 5 幣禁休整下的 0 幣直推與休整 (+${REST_GAIN}幣) 節奏 |\n`;
-        md += `| **3. 🧯 T1 去驟死化監控 (單回合≥4分 / ≤6分暴斃)** | 單回合≥4分爆發 **${T.burst4VPCount} 次** ／ ≤6分起手直達奪冠 **${T.suddenWinFrom6OrLess ? '⚠️ 是 (true)' : '✅ 否 (false)'}** | 驗證 #3 降為 +1 分後，是否徹底消滅 6 分單回合連拿 4 分驟死現象 |\n`;
-        md += `| **4. 全場平均覺醒轉化率 & #3 助攻佔比** | **${awkRate}%** (${totalAwk}/${totalPushed}) ／ #3 助攻 **${c3AssistShare}%** | 評估 #3/#5 (+1分) 與 #1/#2/#4/#6 (+2分) 梯度與 3 幣同點直覺流暢度 |\n`;
-        md += `| **5. 👑 覺醒免費調度 & 🏳️ 階段 4 戰術撤回** | 免費調度 **${freeAllyTotal} 次** ／ 0幣撤回 **${T.phase4CommandChoices.fallbackRetreat0Coin} 次** ／ 直接結束 **${T.phase4CommandChoices.passTurn} 次** | 檢視階段 4 0 幣撤回覺醒牌對反制 #5 偷幣的實戰效益 |\n`;
-        md += `| **6. 🛡️ 單倍護盾撫卹 & 🌀#5搶幣 / 🐎#6先鋒增援** | 護盾撫卹 **${totalIns} 次** (+${T.coinSources.shieldInsurance}幣) ／ #5 時空扭曲 **${T.warpSeizeCount} 次** (奪 ${T.coinSources.card5Steal} 幣／撲空 ${T.card5StealWhiff} 次) ／ #6 先鋒增援 **${T.cavalryAdvanceCount} 次** | 檢視 #5 奪幣與人質牽制策略在 2P/4P 下的互動表現 |\n\n`;
-
-        md += `### 參戰玩家終局表現\n`;
-        md += `| 玩家陣營 | 順位 | 最終得分 | 結算行動幣 | AI/人類 | 終局狀態 |\n`;
-        md += `| :--- | :--- | :--- | :--- | :--- | :--- |\n`;
-        G.players.forEach((pl, i) => {
-          const role = pl.type === 'AI' ? (pl.difficulty === 'CASUAL' ? 'AI(休閒)' : 'AI(高手)') : '真人';
-          md += `| ${pl.seatTag} ${pl.name} | Seat ${i + 1} | ${pl.score} 分 | ${pl.coins}/${T.maxCoins} 幣 | ${role} | ${G.winner && G.winner.id === pl.id ? '🏆 獲勝' : '-'} |\n`;
-        });
-
-        md += `\n---\n\n## 二、 三大維度統計表格\n\n`;
-        md += `### 維度一：階段 2 ～ 階段 4 玩家決策分佈\n`;
-        md += `- **階段 2 全體通用五選一分佈**：\n`;
-        md += `  - 🎲 順應天命直推 #D (0幣)：${T.phase2Choices.freeDirectPush_0coin} 次 ｜ 異點小骰 (1幣)：${T.phase2Choices.willSmall_1coin} 次 ｜ 異點大骰 (2幣)：${T.phase2Choices.willBig_2coin} 次 ｜ 同點直覺 (3幣・限空/敵)：${T.phase2Choices.willDirectAwaken_3coin} 次 ｜ 戰術休整 (+${REST_GAIN}幣・滿5幣禁用)：${T.phase2Choices.rest_2coin} 次\n`;
-        md += `- **階段 3 擊退結算（全面 0 幣擊退）**：免費擊退基礎牌 ${T.clashChoices.freeBaseKnockback} 次 ｜ 免費擊退覺醒牌 (0幣) ${T.clashChoices.freeAwkKnockback} 次\n`;
-        md += `- **階段 4 權能決策（全面 0 幣・零保底・支援 0 幣撤回）**：免費發動當前 (基礎 ${T.phase4CommandChoices.freeSelfBase} / 覺醒 ${T.phase4CommandChoices.freeSelfAwk}) ｜ 覺醒免費調度隊友 (基礎 ${T.phase4CommandChoices.freeAllyBase} / 覺醒 ${T.phase4CommandChoices.freeAllyAwk}) ｜ 0 幣戰術撤回 ${T.phase4CommandChoices.fallbackRetreat0Coin} 次 ｜ 直接結束回合 ${T.phase4CommandChoices.passTurn} 次\n\n`;
-
-        md += `### 維度二：1～6 號卡牌漏斗與護盾生命週期\n`;
-        md += `| 卡牌 | 進駐總次 (增援/時空搶位) | 基礎技生效 | 覺醒次數 (轉化率) | 貢獻勝分 | 覺醒技生效 | 戰術撤回 |\n`;
-        md += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
-        for (let c = 1; c <= 6; c++) {
-          const cs = T.cards[c];
-          const conv = cs.pushed > 0 ? ((cs.awakened / cs.pushed) * 100).toFixed(1) + '%' : '0.0%';
-          const scoreLabel = c === 3 && cs.assistedPoints > 0 ? `${cs.pointsScored} 分 (🔮助攻 +${cs.assistedPoints}分)` : `${cs.pointsScored} 分`;
-          md += `| #${c} ${CARD_META[c].name} (+${CARD_VP[c]}分) | ${cs.pushed} (增援${cs.cavalryPulledCount}/搶位${cs.warpSeizedCount}) | ${cs.baseTriggered} | ${cs.awakened} (${conv}) | ${scoreLabel} | ${cs.awkTriggered} | ${cs.tacticalRetreats} |\n`;
-        }
-        md += `\n- **🛡️ 護盾生命週期統計（公區上限 6 枚・單倍 +1 幣撫卹）**：掛載 ${T.tokenStats.shieldApplied} 次 ｜ 升級保留 ${T.tokenStats.shieldRetainedOnAwk} 次 ｜ 物理擊退撫卹 ${T.tokenStats.shieldInsuranceByClash} 次 ｜ 敵方技能撫卹 ${T.tokenStats.shieldInsuranceBySkill} 次\n\n`;
-
-        md += `### 維度三：V10.4_T1 行動幣經濟流向與守恆驗算 (V10.4_T1 Coin Economy)\n`;
-        md += `- **公區產出源 (5 項 Sources)**：起始 ${T.coinSources.initial} 幣 ｜ 戰術休整 (+${REST_GAIN}幣) +${T.coinSources.rest} 幣 ｜ 🛡️護盾撫卹 (+1幣) +${T.coinSources.shieldInsurance} 幣 ｜ #4 基礎面點石成金 (+${CARD4_GAIN}幣) +${T.coinSources.card4Base} 幣 ｜ #4 覺醒面點石成金 (+${CARD4_GAIN}幣) +${T.coinSources.card4AwkSupply} 幣\n`;
-        md += `- **玩家間轉移**：#5 時空扭曲強奪 ${T.coinSources.card5Steal} 幣（撲空 ${T.card5StealWhiff} 次；全遊戲唯一偷錢技能，滿上限溢額已計入 overflowLost）\n`;
-        md += `- **公區消耗源 (2 項 Sinks)**：階段 2 意志骰實付 -${T.coinSinks.willDieCost} 幣 ｜ 上限溢出繳回 -${T.coinSinks.overflowLost} 幣\n`;
-        md += `- **金幣守恆驗算**：公區淨產出 (${grossPublicSources}) − 公區淨消耗 (${grossPublicSinks}) = **${expectedTotalCoins} 幣** ｜ 終局全體結餘總和 = **${actualTotalCoins} 幣** ➔ ${coinBalanced ? '✅ 100% 守恆閉合' : '⚠️ 帳面偏差'}\n\n`;
-
-        md += `---\n\n## 三、 完整回合戰況時間軸日誌\n\`\`\`text\n`;
-        md += [...T.logs].reverse().join('\n');
-        md += `\n\`\`\`\n\n`;
-
-        md += `---\n\n## 四、 內嵌 JSON 原始遙測數據區塊\n\`\`\`json\n`;
-        md += JSON.stringify(T, null, 2);
-        md += `\n\`\`\`\n\n`;
-
-        md += `---\n\n## 五、 Google NotebookLM V10.4_T1 專用分析提示詞模板\n`;
-        md += `1. **【🧯 T1 去驟死化成效檢定】**：「請根據 V10.4_T1 戰報中的 burst4VPCount (${T.burst4VPCount} 次) 與 suddenWinFrom6OrLess (${T.suddenWinFrom6OrLess})，分析將 #3 神聖祭司降為 +1 分後，是否成功消除 6 分單回合連跳 10 分的驟死問題。」\n`;
-        md += `2. **【🤖 殘局聽牌休整競速 & 2P 清盤反鋪場表現】**：「請檢視進入 8–9 分聽牌圈時 AI 選擇戰術休整 (+2 幣) 衝上 3～4 幣直覺門檻的果斷度，以及 #5 人質覺醒牌牽制與 2P 清盤反鋪場是否有效壓制無腦鋪場。」\n`;
-        md += `3. **【📊 低流轉經濟與守恆檢核】**：「請檢視每回合平均撥盤次數 (${dialPerTurn})、0 幣順應天命 (${T.phase2Choices.freeDirectPush_0coin} 次) 與溢額繳回 (${T.coinSinks.overflowLost} 幣) 之分佈健康度。」\n`;
-        return md;
-      }
-
-      function updateTelemetryModal() {
-        const md = generateMarkdownReport();
-        const previewEl = document.getElementById('telemetry-preview');
-        if (previewEl) previewEl.textContent = md;
-
-        let totalPushed = 0, totalAwk = 0;
-        for (let c = 1; c <= 6; c++) {
-          totalPushed += T.cards[c].pushed;
-          totalAwk += T.cards[c].awakened;
-        }
-        const awkRate = totalPushed > 0 ? ((totalAwk / totalPushed) * 100).toFixed(1) : '0.0';
-        const dialPerTurn = T.totalTurns > 0 ? (T.dialTouches / T.totalTurns).toFixed(2) : '0.00';
-        const totalIns = T.tokenStats.shieldInsuranceByClash + T.tokenStats.shieldInsuranceBySkill;
-
-        const kpiEl = document.getElementById('kpi-summary-cards');
-        if (kpiEl) {
-          kpiEl.innerHTML = `
-            <div class="bg-[#0b0e17] border border-slate-800 rounded-xl p-3">
-              <div class="text-[11px] text-slate-400">1. 📊 每回合平均撥盤次數</div>
-              <div class="text-lg font-black text-sky-400 mt-0.5">${dialPerTurn} 次/回合</div>
-              <div class="text-[10px] text-slate-500">總撥盤 ${T.dialTouches} 次 / ${T.totalTurns} 回合 ‧ 0幣回合: ${T.zeroCoinTurns} 次</div>
-            </div>
-            <div class="bg-[#0b0e17] border border-slate-800 rounded-xl p-3">
-              <div class="text-[11px] text-slate-400">2. 🧯 T1 去驟死化監控</div>
-              <div class="text-lg font-black ${T.suddenWinFrom6OrLess ? 'text-rose-400' : 'text-emerald-400'} mt-0.5">單回≥4分: ${T.burst4VPCount}次</div>
-              <div class="text-[10px] text-slate-500">≤6分驟死勝: ${T.suddenWinFrom6OrLess ? '⚠️ 是' : '✅ 否'} ‧ 覺醒率: ${awkRate}%</div>
-            </div>
-            <div class="bg-[#0b0e17] border border-slate-800 rounded-xl p-3">
-              <div class="text-[11px] text-slate-400">3. 👑 階段 4 調度 &amp; 🏳️ 0幣撤回</div>
-              <div class="text-lg font-black text-amber-400 mt-0.5">調度 ${T.phase4CommandChoices.freeAllyBase + T.phase4CommandChoices.freeAllyAwk}次 / 撤回 ${T.phase4CommandChoices.fallbackRetreat0Coin}次</div>
-              <div class="text-[10px] text-slate-500">直接結束: ${T.phase4CommandChoices.passTurn} 次 ‧ 順應天命: ${T.phase2Choices.freeDirectPush_0coin} 次</div>
-            </div>
-            <div class="bg-[#0b0e17] border border-slate-800 rounded-xl p-3">
-              <div class="text-[11px] text-slate-400">4. 🛡️ 護盾撫卹(+1幣) &amp; 🌀#5搶幣</div>
-              <div class="text-lg font-black text-purple-400 mt-0.5">撫卹 ${totalIns}次 / #5奪 ${T.coinSources.card5Steal}幣</div>
-              <div class="text-[10px] text-slate-500">#5 撲空: ${T.card5StealWhiff} 次 ‧ #6 先鋒增援: ${T.cavalryAdvanceCount} 次</div>
-            </div>
-          `;
-        }
-      }
-
-      function downloadReport(ext) {
-        const content = generateMarkdownReport();
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-        a.href = url;
-        a.download = `ThroneWar_V10_4_T1_${ts}.${ext}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast(`已下載 V10.4_T1 .${ext} 遙測戰報檔案！`);
-      }
-
-      function copyReportToClipboard() {
-        const content = generateMarkdownReport();
-        const ta = document.createElement('textarea');
-        ta.value = content;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        showToast('📋 已複製完整 V10.4_T1 Markdown 戰報至剪貼簿！');
+        showToast(`📋 已複製完整 ${RULES_VERSION} Markdown 戰報至剪貼簿！`);
       }
 
       function showToast(msg) {
@@ -3304,7 +3080,7 @@
           renderAll();
           startTurn();
         } catch (err) {
-          console.error('V10.5 Boot Error:', err);
+          console.error(`${RULES_VERSION} Boot Error:`, err);
         }
       }
 
